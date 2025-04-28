@@ -1,6 +1,5 @@
 <?php
 require '../config/db.php';
-session_start();
 
 if (isset($_POST['update_profile'])) {
     $id = $_POST['id'];

@@ -1,29 +1,533 @@
+/* 
+ * Medical Theme CSS
+ * This file contains all the styling variables and components for the medical application
+ */
+
+/* 
+ * Color Variables
+ * Primary colors are medical-themed (teal, navy)
+ * Secondary colors provide contrast and accents
+ * Status colors for different states (success, warning, etc.)
+ */
 :root {
-  --primary: #40E0D0;
-  --secondary: #1a1a1a;
-  --text: #2c3e50;
-  --background: #ffffff;
-  --card-bg: #ffffff;
-  --nav-bg: #1a1a1a;
-  --nav-text: #e9ecef;
+  /* Primary Colors */
+  --primary: #2B7A78;        /* Main teal color for primary elements */
+  --primary-light: #3AAFA9;  /* Lighter teal for hover states */
+  --primary-dark: #17252A;   /* Darker teal for text and borders */
+  
+  /* Secondary Colors */
+  --secondary: #DEF2F1;      /* Light teal for backgrounds */
+  --secondary-light: #FEFFFF; /* White for contrast */
+  --secondary-dark: #3AAFA9;  /* Dark teal for secondary elements */
+  
+  /* Accent Colors */
+  --accent: #2B7A78;         /* Accent color for highlights */
+  --accent-light: #3AAFA9;   /* Light accent for hover states */
+  --accent-dark: #17252A;    /* Dark accent for borders */
+  
+  /* Status Colors */
+  --success: #28a745;        /* Green for success states */
+  --warning: #ffc107;        /* Yellow for warnings */
+  --danger: #dc3545;         /* Red for errors/danger */
+  --info: #17a2b8;           /* Blue for information */
+  
+  /* Text Colors */
+  --text: #17252A;           /* Main text color */
+  --text-light: #6c757d;     /* Light text for secondary content */
+  --text-lighter: #adb5bd;   /* Lighter text for disabled states */
+  
+  /* Background Colors */
+  --bg-light: #FEFFFF;       /* Light background */
+  --bg-dark: #17252A;        /* Dark background */
+  
+  /* Border Colors */
+  --border: #DEF2F1;         /* Light border color */
+  --border-dark: #3AAFA9;    /* Dark border color */
+
+  /* Sidebar Colors */
+  --sidebar-bg: #f8f9fa;     /* Light sidebar background */
+  --sidebar-text: #1a1a1a;   /* Dark sidebar text */
+  --sidebar-hover: #e9ecef;  /* Sidebar hover state */
+  --sidebar-active: #2B7A78; /* Active sidebar item */
+  --sidebar-icon: #6c757d;   /* Sidebar icon color */
 }
 
 [data-bs-theme="dark"] {
-  --primary: #40E0D0;
-  --secondary: #2d2d2d;
-  --text: #f8f9fa;
-  --background: #1a1a1a;
-  --card-bg: #2d2d2d;
-  --nav-bg: #2d2d2d;
-  --nav-text: #f8f9fa;
+  --sidebar-bg: #212529;
+  --sidebar-text: #ffffff;
+  --sidebar-hover: #2c3034;
+  --sidebar-active: #0d3b39;
+  --sidebar-icon: #adb5bd;
 }
 
-/* Admin Dashboard Styles */
+/* Base Styles */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--bg-light);
+}
+
+[data-bs-theme="dark"] body {
+  color: var(--text-lighter);
+  background-color: var(--bg-dark);
+}
+
+/* Sidebar Styles */
+.sidebar {
+  background-color: var(--sidebar-bg);
+  min-height: 100vh;
+  padding: 1rem;
+  border-right: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.sidebar-avatar {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sidebar-hover);
+  border-radius: 50%;
+  font-size: 2.5rem;
+  color: var(--sidebar-text);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar .nav-link {
+  color: var(--sidebar-text);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin: 0.25rem 1rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.sidebar .nav-link i {
+  width: 20px;
+  margin-right: 0.75rem;
+  font-size: 1.1rem;
+  color: var(--sidebar-icon);
+}
+
+.sidebar .nav-link:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--sidebar-text);
+  transform: translateX(5px);
+}
+
+.sidebar .nav-link.active {
+  background-color: var(--sidebar-active);
+  color: white;
+  font-weight: 600;
+  border-left: 3px solid var(--sidebar-icon);
+}
+
+.sidebar .nav-link.active i {
+  color: white;
+}
+
+.sidebar .text-muted {
+  color: var(--text-muted) !important;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.sidebar .text-danger {
+  color: #dc3545 !important;
+  font-weight: 500;
+}
+
+.sidebar .text-danger:hover {
+  color: #dc3545 !important;
+  background: rgba(220, 53, 69, 0.1);
+}
+
+/* Card Styles */
+.card {
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+/* Form Styles */
+.form-control {
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.25rem rgba(43, 122, 120, 0.25);
+}
+
+.form-label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+/* Button Styles */
+.btn {
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+/* Table Styles */
+.table {
+  margin-bottom: 0;
+}
+
+.table thead th {
+  background-color: var(--secondary);
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.table tbody tr:hover {
+  background-color: var(--secondary);
+}
+
+/* Badge Styles */
+.badge {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+}
+
+/* Modal Styles */
+.modal-content {
+  border-radius: 1rem;
+  border: none;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem;
+}
+
+.modal-body {
+  padding: 1.25rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidebar {
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .card {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+/* Animation Classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 
+ * Heading styles with consistent color and weight
+ */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+/* 
+ * Alert Styles
+ * Styles for different types of alerts
+ */
+.alert {
+  border-radius: 10px;
+  border: none;
+  padding: 1rem;
+}
+
+.alert-success {
+  background-color: var(--success);
+  color: white;
+}
+
+.alert-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.alert-warning {
+  background-color: var(--warning);
+  color: var(--text);
+}
+
+.alert-info {
+  background-color: var(--info);
+  color: white;
+}
+
+/* 
+ * Dashboard Card Styles
+ * Special styles for dashboard cards
+ */
+.dashboard-card {
+  background-color: white;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-card a {
+  text-decoration: none;
+  color: var(--text);
+}
+
+.dashboard-card h5 {
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+/* 
+ * Calendar/Appointment Styles
+ * Styles for appointment slots and calendar
+ */
+.appointment-slot {
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin: 0.25rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.appointment-slot.available {
+  background-color: var(--success);
+  color: white;
+  cursor: pointer;
+}
+
+.appointment-slot.booked {
+  background-color: var(--danger);
+  color: white;
+}
+
+.appointment-slot.past {
+  background-color: var(--text-lighter);
+  color: white;
+}
+
+/* 
+ * User Dashboard Styles
+ * Styles specific to the user dashboard
+ */
+.dashboard-title {
+  color: var(--primary);
+  margin-bottom: 2rem;
+}
+
+/* Card styles for user dashboard */
+.dashboard-card {
+  background: var(--card-bg);
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.card-heading {
+  color: var(--primary);
+  margin-bottom: 1.5rem;
+}
+
+/* Tab styles */
+.nav-tabs .nav-link {
+  color: var(--text);
+  border-color: var(--primary);
+}
+
+.nav-tabs .nav-link.active {
+  background: var(--primary);
+  color: var(--secondary);
+  border-color: var(--primary);
+}
+
+/* 
+ * Calendar Styles
+ * Styles for the weekly calendar view
+ */
+.weekly-calendar {
+  overflow-x: auto;
+  background: var(--card-bg);
+  border-radius: 8px;
+}
+
+.calendar-day {
+  border: 1px solid var(--primary);
+}
+
+.day-header {
+  background: var(--primary);
+  color: var(--secondary);
+  padding: 0.8rem;
+  text-align: center;
+}
+
+.day-slots {
+  padding: 0.5rem;
+  min-height: 400px;
+}
+
+/* Time slot button styles */
+.time-btn {
+  width: 100%;
+  padding: 0.4rem;
+  margin-bottom: 0.4rem;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.time-btn.available {
+  background: var(--primary);
+  color: var(--secondary);
+}
+
+.time-btn.available:hover {
+  filter: brightness(0.9);
+}
+
+.time-btn.booked {
+  background: #ffc107;
+  color: #1a1a1a;
+}
+
+.time-btn.occupied {
+  background: var(--secondary);
+  color: var(--text);
+  cursor: not-allowed;
+}
+
+/* 
+ * Appointments Table Styles
+ * Styles for the appointments table
+ */
+.appointments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.appointments-table th,
+.appointments-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--primary);
+}
+
+.appointments-table th {
+  background: var(--primary);
+  color: var(--secondary);
+}
+
+/* Status label styles */
+.status-label {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.status-label.confirmed {
+  background: var(--primary);
+  color: var(--secondary);
+}
+
+/* Cancel button styles */
+.cancel-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.non-cancelable {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* 
+ * Admin Dashboard Specific Styles
+ * Styles specific to the admin dashboard
+ */
 .admin-greeting {
   color: var(--primary);
   margin-bottom: 2rem !important;
 }
 
+/* Dashboard card styles */
 .dashboard-card {
   background: var(--card-bg);
   border: 2px solid var(--primary);
@@ -53,6 +557,7 @@
   margin-bottom: 0;
 }
 
+/* Appointments list styles */
 .appointments-list {
   background: var(--card-bg);
   border-radius: 8px;
@@ -97,36 +602,11 @@
   background: #ffc107;
   color: #1a1a1a;
 }
-/* User Dashboard Styles */
-.dashboard-title {
-  color: var(--primary);
-  margin-bottom: 2rem;
-}
 
-.dashboard-card {
-  background: var(--card-bg);
-  border: 2px solid var(--primary);
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-}
-
-.card-heading {
-  color: var(--primary);
-  margin-bottom: 1.5rem;
-}
-
-.nav-tabs .nav-link {
-  color: var(--text);
-  border-color: var(--primary);
-}
-
-.nav-tabs .nav-link.active {
-  background: var(--primary);
-  color: var(--secondary);
-  border-color: var(--primary);
-}
-
-/* Calendar Styles */
+/* 
+ * Calendar Styles
+ * Styles for the weekly calendar view
+ */
 .weekly-calendar {
   overflow-x: auto;
   background: var(--card-bg);
@@ -149,6 +629,7 @@
   min-height: 400px;
 }
 
+/* Time slot button styles */
 .time-btn {
   width: 100%;
   padding: 0.4rem;
@@ -178,7 +659,10 @@
   cursor: not-allowed;
 }
 
-/* Appointments Table */
+/* 
+ * Appointments Table Styles
+ * Styles for the appointments table
+ */
 .appointments-table {
   width: 100%;
   border-collapse: collapse;
@@ -195,6 +679,7 @@
   color: var(--secondary);
 }
 
+/* Status label styles */
 .status-label {
   display: inline-block;
   padding: 0.3rem 0.8rem;
@@ -207,6 +692,7 @@
   color: var(--secondary);
 }
 
+/* Cancel button styles */
 .cancel-btn {
   background: #dc3545;
   color: white;
@@ -220,45 +706,10 @@
   color: var(--text-muted);
   font-style: italic;
 }
-/* Sidebar Styles */
-.admin-sidebar {
-  width: 250px;
-  height: 100vh;
-  position: fixed;
-  background: var(--nav-bg);
-  border-right: 2px solid var(--primary);
-  padding: 1.5rem;
-  color: var(--nav-text);
-  transition: all 0.3s ease;
-}
 
-.sidebar-title {
-  color: var(--primary);
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--primary);
-  margin-bottom: 1.5rem;
-}
-
-.sidebar-nav .nav-link {
-  color: var(--nav-text) !important;
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.5rem;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-}
-
-.sidebar-nav .nav-link:hover {
-  background: rgba(64, 224, 208, 0.1);
-  color: var(--primary) !important;
-}
-
-.sidebar-nav .nav-link.active {
-  background: var(--primary) !important;
-  color: var(--secondary) !important;
-}
-
+/* 
+ * Logout item styles
+ */
 .logout-item .nav-link {
   color: #ff4444 !important;
   margin-top: 2rem;
@@ -268,7 +719,33 @@
   background: rgba(255, 68, 68, 0.1) !important;
 }
 
+/* 
+ * Icon styles
+ */
 .bi {
   font-size: 1.1rem;
   width: 24px;
+}
+
+/* Theme Toggle Button */
+#themeToggle {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary);
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+#themeToggle:hover {
+    transform: scale(1.1);
+    background-color: var(--primary-dark);
+}
+
+#themeToggle i {
+    font-size: 1.2rem;
+    color: white;
 }

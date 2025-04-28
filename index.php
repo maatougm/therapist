@@ -1,212 +1,226 @@
-<?php include 'partials/header.php'; ?>
+<?php
+// Start session and include required files
+session_start();
+include 'partials/header.php';
+require 'config/db.php';
+
+// Get featured therapists
+$stmt = $pdo->query("
+    SELECT u.*, COUNT(a.id) as appointment_count 
+    FROM users u 
+    JOIN appointments a ON u.id = a.user_id 
+    WHERE u.role = 'therapist' 
+    GROUP BY u.id 
+    ORDER BY appointment_count DESC 
+    LIMIT 3
+");
+$featured_therapists = $stmt->fetchAll();
+?>
 
 <!-- Hero Section -->
-<section class="hero-kine">
-  <div class="hero-wave"></div>
-  <div class="container">
-    <div class="hero-content">
-      <div class="hero-text">
-        <h1 class="reveal-text">Restore Your Movement<br>Regain Your Freedom</h1>
-        <p class="hero-subtext">Personalized kinesitherapy treatments for complete rehabilitation</p>
-        <a href="#booking" class="cta-pulse">Book Assessment</a>
-      </div>
-      <div class="hero-visual">
-        <div class="floating-joints">
-          <!-- Animated joint visualization -->
-          <div class="joint-line shoulder"></div>
-          <div class="joint-line spine"></div>
-          <div class="joint-line knee"></div>
+<section class="hero-section position-relative overflow-hidden">
+    <div class="container">
+        <div class="row min-vh-75 align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold text-primary mb-4">
+                    Votre santé, notre priorité
+                </h1>
+                <p class="lead text-muted mb-4">
+                    Des soins de kinésithérapie personnalisés pour votre bien-être. 
+                    Prenez rendez-vous facilement avec nos thérapeutes qualifiés.
+                </p>
+                <div class="d-flex gap-3">
+                    <a href="book_appointment.php" class="btn btn-primary btn-lg">
+                        <i class="fas fa-calendar-plus me-2"></i>
+                        Prendre RDV
+                    </a>
+                    <a href="#services" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Nos services
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 d-none d-lg-block">
+                <div class="hero-image position-relative">
+                    <img src="assets/images/hero-image.jpg" alt="Kinésithérapie" class="img-fluid rounded-4 shadow">
+                    <div class="hero-stats position-absolute bottom-0 start-0 bg-white p-3 rounded-4 shadow-sm">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h3 class="text-primary mb-0">50+</h3>
+                                    <small class="text-muted">Kinésithérapeutes</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h3 class="text-primary mb-0">1000+</h3>
+                                    <small class="text-muted">Patients satisfaits</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
+    <div class="hero-shape position-absolute top-0 end-0 w-50 h-100 bg-primary-light opacity-10"></div>
 </section>
 
-<!-- Key Services -->
-<section class="services-kine">
-  <div class="container">
-    <h2 class="section-title">Our Therapeutic Approaches</h2>
-    
-    <div class="service-grid">
-      <div class="service-card">
-        <div class="card-illustration neuro"></div>
-        <h3>Neurological Rehabilitation</h3>
-        <p>Recover motor functions after neurological events</p>
-        <div class="card-hover">
-          <a href="#" class="card-link">Learn More</a>
+<!-- Services Section -->
+<section id="services" class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold text-primary mb-3">Nos Services</h2>
+            <p class="lead text-muted">Des soins adaptés à vos besoins</p>
         </div>
-      </div>
-
-      <div class="service-card">
-        <div class="card-illustration sport"></div>
-        <h3>Sports Recovery</h3>
-        <p>Specialized programs for athletes</p>
-        <div class="card-hover">
-          <a href="#" class="card-link">Learn More</a>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="service-card card h-100 border-0 shadow-sm hover-shadow">
+                    <div class="card-body p-4">
+                        <div class="icon-circle bg-primary-light mb-4">
+                            <i class="fas fa-bone text-primary"></i>
+                        </div>
+                        <h3 class="h5 mb-3">Rééducation</h3>
+                        <p class="text-muted mb-0">
+                            Traitement des troubles musculo-squelettiques et rééducation fonctionnelle.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="service-card card h-100 border-0 shadow-sm hover-shadow">
+                    <div class="card-body p-4">
+                        <div class="icon-circle bg-success-light mb-4">
+                            <i class="fas fa-running text-success"></i>
+                        </div>
+                        <h3 class="h5 mb-3">Kinésithérapie Sportive</h3>
+                        <p class="text-muted mb-0">
+                            Prévention et traitement des blessures liées à la pratique sportive.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="service-card card h-100 border-0 shadow-sm hover-shadow">
+                    <div class="card-body p-4">
+                        <div class="icon-circle bg-info-light mb-4">
+                            <i class="fas fa-baby text-info"></i>
+                        </div>
+                        <h3 class="h5 mb-3">Kinésithérapie Pédiatrique</h3>
+                        <p class="text-muted mb-0">
+                            Prise en charge des troubles du développement chez l'enfant.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-
-      <div class="service-card">
-        <div class="card-illustration posture"></div>
-        <h3>Postural Correction</h3>
-        <p>Ergonomic assessment and correction</p>
-        <div class="card-hover">
-          <a href="#" class="card-link">Learn More</a>
-        </div>
-      </div>
     </div>
-  </div>
 </section>
 
-<!-- Interactive Body Map -->
-<section class="body-map">
-  <div class="container">
-    <h2>Targeted Treatment Areas</h2>
-    <div class="interactive-body">
-      <!-- SVG body map with interactive areas -->
-      <img src="body-silhouette.svg" alt="Human body areas" class="body-base">
-      <div class="body-point shoulder" data-area="shoulder"></div>
-      <div class="body-point spine" data-area="spine"></div>
-      <div class="body-point knee" data-area="knee"></div>
+<!-- Featured Therapists Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold text-primary mb-3">Nos Kinésithérapeutes</h2>
+            <p class="lead text-muted">Des professionnels qualifiés à votre service</p>
+        </div>
+        <div class="row g-4">
+            <?php foreach ($featured_therapists as $therapist): ?>
+                <div class="col-md-4">
+                    <div class="therapist-card card h-100 border-0 shadow-sm hover-shadow">
+                        <div class="card-body p-4 text-center">
+                            <div class="therapist-avatar mb-3">
+                                <i class="fas fa-user-md fa-3x text-primary"></i>
+                            </div>
+                            <h3 class="h5 mb-2"><?= htmlspecialchars($therapist['name']) ?></h3>
+                            <p class="text-muted mb-3">
+                                <?= $therapist['appointment_count'] ?> rendez-vous effectués
+                            </p>
+                            <a href="book_appointment.php?therapist_id=<?= $therapist['id'] ?>" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-calendar-plus me-2"></i>
+                                Prendre RDV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
     </div>
-  </div>
 </section>
 
-<!-- Booking CTA -->
-<section class="booking-kine" id="booking">
-  <div class="booking-wave"></div>
-  <div class="container">
-    <div class="booking-card">
-      <h2>Start Your Recovery Journey</h2>
-      <p>Schedule your initial assessment with our specialists</p>
-      <div class="booking-actions">
-        <a href="/booking" class="cta-3d">Book Now</a>
-        <a href="/therapists" class="cta-outline">Meet Our Team</a>
-      </div>
+<!-- CTA Section -->
+<section class="py-5 bg-primary text-white">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h2 class="display-5 fw-bold mb-3">Prêt à prendre soin de votre santé ?</h2>
+                <p class="lead mb-0">
+                    Réservez votre consultation en ligne en quelques clics.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="book_appointment.php" class="btn btn-light btn-lg">
+                    <i class="fas fa-calendar-plus me-2"></i>
+                    Prendre RDV
+                </a>
+            </div>
+        </div>
     </div>
-  </div>
 </section>
 
 <style>
-/* Color Scheme */
-:root {
-  --primary-teal: #2B7A78;
-  --soft-blue: #DEF2F1;
-  --warm-gray: #EDE7E3;
-  --accent-orange: #FF7A5A;
+/* Hero Section Styles */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--white) 100%);
+    padding: 4rem 0;
 }
 
-/* Hero Section */
-.hero-kine {
-  background: linear-gradient(160deg, var(--soft-blue) 60%, #ffffff 100%);
-  padding: 6rem 0 8rem;
-  position: relative;
+.hero-image {
+    transform: perspective(1000px) rotateY(-10deg);
+    transition: transform 0.3s ease;
 }
 
-.hero-wave {
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 150px;
-  background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg"><path fill="%23ffffff" d="M0,224L60,213.3C120,203,240,181,360,192C480,203,600,245,720,234.7C840,224,960,160,1080,154.7C1200,149,1320,203,1380,229.3L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"></path></svg>');
-  animation: waveAnim 12s infinite linear;
+.hero-image:hover {
+    transform: perspective(1000px) rotateY(0deg);
 }
 
-@keyframes waveAnim {
-  0% { background-position-x: 0; }
-  100% { background-position-x: 1440px; }
+.hero-stats {
+    transform: translateY(50%);
 }
 
+/* Service Card Styles */
 .service-card {
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 10px 30px rgba(43,122,120,0.1);
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: transform 0.3s ease;
 }
 
 .service-card:hover {
-  transform: translateY(-15px);
+    transform: translateY(-5px);
 }
 
-.card-illustration {
-  height: 200px;
-  background-size: contain;
-  background-repeat: no-repeat;
-  margin: -2rem -2rem 1rem -2rem;
-  border-radius: 15px 15px 0 0;
+/* Therapist Card Styles */
+.therapist-card {
+    transition: transform 0.3s ease;
 }
 
-.neuro { background-image: url('neuro-illustration.svg'); }
-.sport { background-image: url('sports-illustration.svg'); }
-.posture { background-image: url('posture-illustration.svg'); }
-
-/* Interactive Body Map */
-.interactive-body {
-  position: relative;
-  max-width: 600px;
-  margin: 2rem auto;
+.therapist-card:hover {
+    transform: translateY(-5px);
 }
 
-.body-point {
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--accent-orange);
-  cursor: pointer;
-  transition: transform 0.3s ease;
+.therapist-avatar {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    border-radius: 50%;
 }
 
-.body-point:hover {
-  transform: scale(1.2);
-}
-
-/* 3D CTA Button */
-.cta-3d {
-  background: var(--primary-teal);
-  padding: 1rem 2rem;
-  border-radius: 15px;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 8px 0 #1B4A48,
-              0 12px 20px rgba(43,122,120,0.3);
-  transition: all 0.2s ease;
-}
-
-.cta-3d:active {
-  transform: translateY(4px);
-  box-shadow: 0 4px 0 #1B4A48;
-}
-
-/* Mobile Optimization */
-@media (max-width: 768px) {
-  .hero-content {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .service-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .floating-joints {
-    display: none;
-  }
-}
-
-/* Joint Animation */
-.joint-line {
-  position: absolute;
-  background: rgba(43,122,120,0.1);
-  border-radius: 10px;
-  animation: jointFloat 4s infinite ease-in-out;
-}
-
-@keyframes jointFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+/* CTA Section Styles */
+.cta-section {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
 }
 </style>
 

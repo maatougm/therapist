@@ -1,12 +1,16 @@
 <?php
+// Database configuration
 $host = 'localhost';
-$db   = 'kenetherapy';
-$user = 'root';
-$pass = '';
+$db   = 'kene_therapy';
+$user = 'root';  // Using root temporarily
+$pass = '';      // Empty password for root
 $charset = 'utf8mb4';
+
+// Enable error reporting temporarily for debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -17,5 +21,6 @@ $options = [
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (PDOException $e) {
-    throw new PDOException($e->getMessage(), (int)$e->getCode());
+    // Show the actual error for debugging
+    die("Database connection error: " . $e->getMessage());
 }

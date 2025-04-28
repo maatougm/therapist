@@ -1,6 +1,519 @@
 <?php
 session_start();
-require '../config/db.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/locationController.php';
+
+class AppointmentController {
+    private $db;
+    private $locationController;
+
+    public function __construct($db) {
+        $this->db = $db;
+        $this->locationController = new LocationController();
+    }
+
+    public function bookAppointment($userId, $therapistId, $date, $time) {
+        try {
+            $this->db->beginTransaction();  
+
+            // Insert appointment
+            $stmt = $this->db->prepare("
+                INSERT INTO appointments (user_id, date, hour, status)
+                VALUES (?, ?, ?, 'scheduled')
+            ");
+            $stmt->execute([$userId, $date, $time]);
+            $appointmentId = $this->db->lastInsertId();
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return false;
+        }
+    }
+
+    public function cancelAppointment($appointmentId, $userId, $therapistId) {
+        try {
+            $this->db->beginTransaction();
+
+            // Update appointment status
+            $stmt = $this->db->prepare("
+                UPDATE appointments
+                SET status = 'cancelled'
+                WHERE id = ?
+            ");
+            $stmt->execute([$appointmentId]);
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return false;
+        }
+    }
+
+    public function rescheduleAppointment($appointmentId, $userId, $therapistId, $newDate, $newTime) {
+        try {
+            $this->db->beginTransaction();
+
+            // Update appointment
+            $stmt = $this->db->prepare("
+                UPDATE appointments
+                SET date = ?, hour = ?, status = 'rescheduled'
+                WHERE id = ?
+            ");
+            $stmt->execute([$newDate, $newTime, $appointmentId]);
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            return false;
+        }
+    }
+
+    // Get all appointments
+    public function getAllAppointments($filters = []) {
+        try {
+            $sql = "
+                SELECT a.*, 
+                       u.name as client_name,
+                       t.name as therapist_name,
+                       l.name as location_name
+                FROM appointments a
+                JOIN users u ON a.user_id = u.id
+                JOIN users t ON a.therapist_id = t.id
+                LEFT JOIN locations l ON a.location_id = l.id
+                WHERE 1=1
+            ";
+            $params = [];
+
+            if (!empty($filters['start_date'])) {
+                $sql .= " AND a.appointment_date >= ?";
+                $params[] = $filters['start_date'];
+            }
+
+            if (!empty($filters['end_date'])) {
+                $sql .= " AND a.appointment_date <= ?";
+                $params[] = $filters['end_date'];
+            }
+
+            if (!empty($filters['therapist_id'])) {
+                $sql .= " AND a.therapist_id = ?";
+                $params[] = $filters['therapist_id'];
+            }
+
+            if (!empty($filters['user_id'])) {
+                $sql .= " AND a.user_id = ?";
+                $params[] = $filters['user_id'];
+            }
+
+            if (!empty($filters['status'])) {
+                $sql .= " AND a.status = ?";
+                $params[] = $filters['status'];
+            }
+
+            $sql .= " ORDER BY a.appointment_date ASC, a.start_time ASC";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error fetching appointments: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    // Get appointment by ID
+    public function getAppointmentById($id) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT a.*, 
+                       u.name as client_name,
+                       t.name as therapist_name,
+                       l.name as location_name
+                FROM appointments a
+                JOIN users u ON a.user_id = u.id
+                JOIN users t ON a.therapist_id = t.id
+                LEFT JOIN locations l ON a.location_id = l.id
+                WHERE a.id = ?
+            ");
+            $stmt->execute([$id]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error fetching appointment: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    // Create new appointment
+    public function createAppointment($data) {
+        try {
+            // Validate required fields
+            $required_fields = ['client_id', 'date', 'hour', 'therapist_id', 'location_id'];
+            foreach ($required_fields as $field) {
+                if (empty($data[$field])) {
+                    return ['success' => false, 'message' => "Tous les champs obligatoires doivent être remplis."];
+                }
+            }
+
+            // Check if location is active
+            if (!$this->locationController->isLocationActive($data['location_id'])) {
+                return ['success' => false, 'message' => "Le lieu sélectionné n'est pas disponible."];
+            }
+
+            // Check if time slot is available (no more than 3 appointments per hour per location)
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) 
+                FROM appointments 
+                WHERE location_id = ? 
+                AND date = ? 
+                AND hour = ?
+                AND status != 'cancelled'
+            ");
+            $stmt->execute([
+                $data['location_id'],
+                $data['date'],
+                $data['hour']
+            ]);
+            
+            if ($stmt->fetchColumn() >= 3) {
+                return ['success' => false, 'message' => "Ce créneau horaire est complet pour ce lieu."];
+            }
+
+            // Check if client already has an appointment at this time
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) 
+                FROM appointments 
+                WHERE user_id = ? 
+                AND date = ? 
+                AND hour = ?
+                AND status != 'cancelled'
+            ");
+            $stmt->execute([
+                $data['client_id'],
+                $data['date'],
+                $data['hour']
+            ]);
+            
+            if ($stmt->fetchColumn() > 0) {
+                return ['success' => false, 'message' => "Le client a déjà un rendez-vous à cette heure."];
+            }
+
+            // Determine if the appointment is created by a kine
+            $stmt = $this->db->prepare("SELECT role FROM users WHERE id = ?");
+            $stmt->execute([$data['therapist_id']]);
+            $therapist = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Set status to 'confirmed' if created by a kine, otherwise 'pending'
+            $status = ($therapist['role'] === 'kine') ? 'confirmed' : 'pending';
+
+            // Prepare the SQL statement
+            $stmt = $this->db->prepare("
+                INSERT INTO appointments (
+                    user_id, 
+                    therapist_id, 
+                    location_id, 
+                    date, 
+                    hour, 
+                    notes, 
+                    status, 
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            ");
+
+            // Execute the statement with the form data
+            $stmt->execute([
+                $data['client_id'],
+                $data['therapist_id'],
+                $data['location_id'],
+                $data['date'],
+                $data['hour'],
+                $data['notes'] ?? null,
+                $status
+            ]);
+
+            return ['success' => true, 'message' => "Le rendez-vous a été créé avec succès."];
+        } catch (Exception $e) {
+            error_log("Error creating appointment: " . $e->getMessage());
+            return ['success' => false, 'message' => "Une erreur est survenue lors de la création du rendez-vous."];
+        }
+    }
+
+    // Update appointment
+    public function updateAppointment($id, $data) {
+        try {
+            // Check for conflicts if time is being changed
+            if (isset($data['start_time']) || isset($data['end_time']) || isset($data['appointment_date'])) {
+                $current = $this->getAppointmentById($id);
+                $checkData = array_merge($current, $data);
+                if (!$this->isTimeSlotAvailable($checkData, $id)) {
+                    return ['success' => false, 'message' => 'Time slot is not available'];
+                }
+            }
+
+            $sql = "UPDATE appointments SET ";
+            $params = [];
+            $updates = [];
+
+            foreach ($data as $key => $value) {
+                if (in_array($key, ['user_id', 'therapist_id', 'location_id', 'appointment_date', 
+                                   'start_time', 'end_time', 'status', 'notes'])) {
+                    $updates[] = "$key = ?";
+                    $params[] = $value;
+                }
+            }
+
+            $sql .= implode(', ', $updates);
+            $sql .= " WHERE id = ?";
+            $params[] = $id;
+
+            $stmt = $this->db->prepare($sql);
+            $result = $stmt->execute($params);
+
+            return ['success' => $result];
+        } catch (PDOException $e) {
+            error_log("Error updating appointment: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Error updating appointment'];
+        }
+    }
+
+    // Delete appointment
+    public function deleteAppointment($id) {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM appointments WHERE id = ?");
+            return ['success' => $stmt->execute([$id])];
+        } catch (PDOException $e) {
+            error_log("Error deleting appointment: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Error deleting appointment'];
+        }
+    }
+
+    // Check if time slot is available
+    private function isTimeSlotAvailable($data, $excludeId = null) {
+        try {
+            $sql = "
+                SELECT COUNT(*) FROM appointments
+                WHERE therapist_id = ?
+                AND appointment_date = ?
+                AND (
+                    (start_time <= ? AND end_time > ?)
+                    OR (start_time < ? AND end_time >= ?)
+                    OR (start_time >= ? AND end_time <= ?)
+                )
+            ";
+            $params = [
+                $data['therapist_id'],
+                $data['appointment_date'],
+                $data['start_time'],
+                $data['start_time'],
+                $data['end_time'],
+                $data['end_time'],
+                $data['start_time'],
+                $data['end_time']
+            ];
+
+            if ($excludeId) {
+                $sql .= " AND id != ?";
+                $params[] = $excludeId;
+            }
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchColumn() == 0;
+        } catch (PDOException $e) {
+            error_log("Error checking time slot: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Get available time slots for a therapist on a specific date
+    public function getAvailableTimeSlots($therapistId, $date, $duration = 60) {
+        try {
+            // Get therapist's working hours
+            $stmt = $this->db->prepare("
+                SELECT working_hours FROM users WHERE id = ?
+            ");
+            $stmt->execute([$therapistId]);
+            $workingHours = json_decode($stmt->fetchColumn(), true);
+
+            if (empty($workingHours)) {
+                return ['success' => false, 'message' => 'Therapist has no working hours set'];
+            }
+
+            $dayOfWeek = strtolower(date('l', strtotime($date)));
+            if (!isset($workingHours[$dayOfWeek]) || !$workingHours[$dayOfWeek]['enabled']) {
+                return ['success' => false, 'message' => 'Therapist is not working on this day'];
+            }
+
+            $startTime = strtotime($workingHours[$dayOfWeek]['start']);
+            $endTime = strtotime($workingHours[$dayOfWeek]['end']);
+            $interval = $duration * 60; // Convert to seconds
+
+            // Get existing appointments
+            $stmt = $this->db->prepare("
+                SELECT start_time, end_time FROM appointments
+                WHERE therapist_id = ? AND appointment_date = ? AND status != 'cancelled'
+            ");
+            $stmt->execute([$therapistId, $date]);
+            $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $availableSlots = [];
+            $currentTime = $startTime;
+
+            while ($currentTime + $interval <= $endTime) {
+                $slotStart = date('H:i:s', $currentTime);
+                $slotEnd = date('H:i:s', $currentTime + $interval);
+                $isAvailable = true;
+
+                foreach ($appointments as $appointment) {
+                    if (($slotStart >= $appointment['start_time'] && $slotStart < $appointment['end_time']) ||
+                        ($slotEnd > $appointment['start_time'] && $slotEnd <= $appointment['end_time']) ||
+                        ($slotStart <= $appointment['start_time'] && $slotEnd >= $appointment['end_time'])) {
+                        $isAvailable = false;
+                        break;
+                    }
+                }
+
+                if ($isAvailable) {
+                    $availableSlots[] = [
+                        'start' => $slotStart,
+                        'end' => $slotEnd
+                    ];
+                }
+
+                $currentTime += $interval;
+            }
+
+            return ['success' => true, 'slots' => $availableSlots];
+        } catch (PDOException $e) {
+            error_log("Error getting available time slots: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Error getting available time slots'];
+        }
+    }
+}
+
+// Check if user is logged in
+if (!isset($_SESSION['user']) || !isset($_SESSION['user']['id'])) {
+    header('Location: /pfaa/login.php');
+    exit();
+}
+
+// Initialize controllers
+$locationController = new LocationController();
+
+// Get the action from the request
+$action = $_POST['action'] ?? '';
+
+switch ($action) {
+    case 'create':
+        createAppointment();
+        break;
+    default:
+        header('Location: /pfaa/kine_dashboard.php');
+        exit();
+}
+
+function createAppointment() {
+    global $pdo, $locationController;
+    
+    // Validate required fields
+    $required_fields = ['client_id', 'date', 'hour', 'therapist_id', 'location_id'];
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            $_SESSION['error'] = "Tous les champs obligatoires doivent être remplis.";
+            header('Location: /pfaa/manage/bookFor.php');
+            exit();
+        }
+    }
+
+    try {
+        // Check if location is active using LocationController
+        if (!$locationController->isLocationActive($_POST['location_id'])) {
+            $_SESSION['error'] = "Le lieu sélectionné n'est pas disponible.";
+            header('Location: /pfaa/manage/bookFor.php');
+            exit();
+        }
+
+        // Check if time slot is available (no more than 3 appointments per hour per location)
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM appointments 
+            WHERE location_id = ? 
+            AND date = ? 
+            AND hour = ?
+        ");
+        $stmt->execute([
+            $_POST['location_id'],
+            $_POST['date'],
+            $_POST['hour']
+        ]);
+        
+        if ($stmt->fetchColumn() >= 3) {
+            $_SESSION['error'] = "Ce créneau horaire est complet pour ce lieu.";
+            header('Location: /pfaa/manage/bookFor.php');
+            exit();
+        }
+
+        // Check if client already has an appointment at this time
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM appointments 
+            WHERE user_id = ? 
+            AND date = ? 
+            AND hour = ?
+        ");
+        $stmt->execute([
+            $_POST['client_id'],
+            $_POST['date'],
+            $_POST['hour']
+        ]);
+        
+        if ($stmt->fetchColumn() > 0) {
+            $_SESSION['error'] = "Le client a déjà un rendez-vous à cette heure.";
+            header('Location: /pfaa/manage/bookFor.php');
+            exit();
+        }
+
+        // Prepare the SQL statement
+        $stmt = $pdo->prepare("
+            INSERT INTO appointments (
+                user_id, 
+                therapist_id, 
+                location_id, 
+                date, 
+                hour, 
+                notes, 
+                status, 
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())
+        ");
+
+        // Execute the statement with the form data
+        $stmt->execute([
+            $_POST['client_id'],
+            $_POST['therapist_id'],
+            $_POST['location_id'],
+            $_POST['date'],
+            $_POST['hour'],
+            $_POST['notes'] ?? null
+        ]);
+
+        // Set success message
+        $_SESSION['success'] = "Le rendez-vous a été créé avec succès.";
+        
+        // Redirect back to the appointments page
+        header('Location: /pfaa/manage/appointments.php');
+        exit();
+
+    } catch (PDOException $e) {
+        // Log the error and set error message
+        error_log("Error creating appointment: " . $e->getMessage());
+        $_SESSION['error'] = "Une erreur est survenue lors de la création du rendez-vous.";
+        header('Location: /pfaa/manage/bookFor.php');
+        exit();
+    }
+}
 
 // Book appointment by client
 if (isset($_POST['book_appointment'])) {
@@ -33,9 +546,19 @@ if (isset($_POST['book_appointment'])) {
         exit();
     }
 
+    // Get therapist assigned to this location
+    $stmt = $pdo->prepare("SELECT therapist_id FROM therapist_locations WHERE location_id = ? LIMIT 1");
+    $stmt->execute([$location_id]);
+    $therapist_id = $stmt->fetchColumn();
+
+    if (!$therapist_id) {
+        header("Location: ../user_dashboard.php?error=no_therapist");
+        exit();
+    }
+
     // Book it
-    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, 'confirmed')");
-    $stmt->execute([$user_id, $date, $hour, $location_id]);
+    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, therapist_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, ?, 'confirmed')");
+    $stmt->execute([$user_id, $therapist_id, $date, $hour, $location_id]);
 
     header("Location: ../user_dashboard.php?success=1");
     exit();
@@ -85,22 +608,20 @@ if (isset($_POST['book_for_patient']) || isset($_POST['book_for_patient_from_gri
         header("Location: ../kine_dashboard.php?error=slot_full");
         exit();
     }
-    //reschedule_appointment
-    if (isset($_POST['reschedule_appointment'])) {
-        $id = $_POST['appointment_id'];
-        $newDate = $_POST['new_date'];
-        $newHour = $_POST['new_hour'];
-    
-        $stmt = $pdo->prepare("UPDATE appointments SET date = ?, hour = ? WHERE id = ?");
-        $stmt->execute([$newDate, $newHour, $id]);
-    
-        echo "success";
+
+    // Get therapist assigned to this location
+    $stmt = $pdo->prepare("SELECT therapist_id FROM therapist_locations WHERE location_id = ? AND therapist_id = ? LIMIT 1");
+    $stmt->execute([$location_id, $_SESSION['user']['id']]);
+    $therapist_id = $stmt->fetchColumn();
+
+    if (!$therapist_id) {
+        header("Location: ../kine_dashboard.php?error=not_assigned");
         exit();
     }
     
     // Book it
-    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, 'confirmed')");
-    $stmt->execute([$user_id, $date, $hour, $location_id]);
+    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, therapist_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, ?, 'confirmed')");
+    $stmt->execute([$user_id, $therapist_id, $date, $hour, $location_id]);
 
     header("Location: ../kine_dashboard.php?added=1");
     exit();

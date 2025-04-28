@@ -1,176 +1,264 @@
-<?php include '../partials/header.php'; ?>
-<?php include '../partials/nav.php'; ?>
 <?php
+/**
+ * Appointment Booking Page
+ * 
+ * Allows therapists to create new appointments for clients.
+ * Includes form validation, client selection, and appointment scheduling.
+ */
+
+require_once '../config/auth.php';
+requireRole('kine');
 require '../config/db.php';
-session_start();
+include '../partials/header.php';
 
-$searchResults = [];
-if (isset($_POST['search'])) {
-  $term = '%' . $_POST['search_term'] . '%';
-  $stmt = $pdo->prepare("SELECT * FROM users WHERE role = 'client' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)");
-  $stmt->execute([$term, $term, $term]);
-  $searchResults = $stmt->fetchAll();
+// Check if user is logged in
+if (!isset($_SESSION['user']) || !isset($_SESSION['user']['id'])) {
+    header('Location: /pfaa/login.php');
+    exit();
 }
 
-$locations = $pdo->query("SELECT * FROM locations WHERE status = 'active'")->fetchAll();
+$therapist_id = $_SESSION['user']['id'];
 
-$start = new DateTime();
-$start->modify('monday this week');
-$appointmentCounts = [];
-foreach ($locations as $loc) {
-  for ($i = 0; $i < 7; $i++) {
-    $day = clone $start;
-    $day->modify("+$i day");
-    $dateStr = $day->format('Y-m-d');
-    for ($h = 8; $h <= 19; $h++) {
-      $hour = str_pad($h, 2, '0', STR_PAD_LEFT) . ':00:00';
-      $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE date = ? AND hour = ? AND location_id = ?");
-      $stmt->execute([$dateStr, $hour, $loc['id']]);
-      $appointmentCounts[$loc['id']][$dateStr][$hour] = $stmt->fetchColumn();
-    }
-  }
+try {
+    /**
+     * Fetch Available Clients
+     * 
+     * Retrieves all clients (users with role 'client') for the dropdown selection
+     */
+    $stmt = $pdo->prepare("
+        SELECT id, name 
+        FROM users 
+        WHERE role = 'client' 
+        ORDER BY name
+    ");
+    $stmt->execute();
+    $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    /**
+     * Fetch Available Locations
+     * 
+     * Retrieves all locations for the dropdown selection
+     */
+    $stmt = $pdo->prepare("
+        SELECT id, name 
+        FROM locations 
+        ORDER BY name
+    ");
+    $stmt->execute();
+    $locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    /**
+     * Fetch Upcoming Appointments
+     * 
+     * Retrieves appointments for the current therapist:
+     * - Today's appointments
+     * - Upcoming appointments (next 7 days)
+     */
+    $today = date('Y-m-d');
+    $next_week = date('Y-m-d', strtotime('+7 days'));
+
+    // Today's appointments
+    $stmt = $pdo->prepare("
+        SELECT a.*, u.name as client_name, l.name as location_name
+        FROM appointments a
+        JOIN users u ON a.user_id = u.id
+        JOIN locations l ON a.location_id = l.id
+        WHERE a.therapist_id = ? AND a.date = ?
+        ORDER BY a.hour
+    ");
+    $stmt->execute([$_SESSION['user']['id'], $today]);
+    $today_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Upcoming appointments
+    $stmt = $pdo->prepare("
+        SELECT a.*, u.name as client_name, l.name as location_name
+        FROM appointments a
+        JOIN users u ON a.user_id = u.id
+        JOIN locations l ON a.location_id = l.id
+        WHERE a.therapist_id = ? AND a.date > ? AND a.date <= ?
+        ORDER BY a.date, a.hour
+    ");
+    $stmt->execute([$_SESSION['user']['id'], $today, $next_week]);
+    $upcoming_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    // Log error and display error message
+    error_log("Error fetching data: " . $e->getMessage());
+    $error = "Une erreur est survenue lors du chargement des données";
 }
+
+// Force dark mode
+echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</script>';
 ?>
+
 <div class="container-fluid">
-  <div class="row">
-    <div class="col-md-3 col-lg-2 bg-light p-3">
-      <?php include '../partials/sidebar.php'; ?>
-    </div>
-
-    <div class="col-md-9 col-lg-10 mt-4">
-      <h2>Rechercher un patient</h2>
-
-      <form method="POST" class="mb-4">
-        <div class="input-group">
-          <input type="text" name="search_term" class="form-control" placeholder="Nom, email ou téléphone...">
-          <button class="btn btn-primary" type="submit" name="search">Rechercher</button>
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+            <?php include '../partials/sidebar.php'; ?>
         </div>
-      </form>
 
-      <?php if (!empty($searchResults)): ?>
-        <table class="table table-sm table-hover table-bordered align-middle text-center">
-          <thead class="table-light">
-            <tr>
-              <th>Nom</th>
-              <th>Email</th>
-              <th>Téléphone</th>
-              <th>Profil</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($searchResults as $user): ?>
-            <tr>
-              <td><?= htmlspecialchars($user['name']) ?></td>
-              <td><?= htmlspecialchars($user['email']) ?></td>
-              <td><?= htmlspecialchars($user['phone']) ?></td>
-              <td>
-                <a href="?profile_id=<?= $user['id'] ?>" class="btn btn-outline-info btn-sm">Voir</a>
-              </td>
-            </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      <?php endif; ?>
-
-      <?php if (isset($_GET['profile_id'])): 
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$_GET['profile_id']]);
-        $profile = $stmt->fetch();
-
-        $stmtA = $pdo->prepare("SELECT * FROM appointments WHERE user_id = ? ORDER BY date DESC");
-        $stmtA->execute([$_GET['profile_id']]);
-        $history = $stmtA->fetchAll();
-
-        $stmtR = $pdo->prepare("SELECT * FROM reports WHERE user_id = ? ORDER BY created_at DESC");
-        $stmtR->execute([$_GET['profile_id']]);
-        $reports = $stmtR->fetchAll();
-      ?>
-      <div class="card mt-5 shadow-sm">
-        <div class="card-body">
-          <h4 class="mb-4">Détails du profil</h4>
-          <ul class="list-group mb-4">
-            <li class="list-group-item"><strong>Nom :</strong> <?= htmlspecialchars($profile['name']) ?></li>
-            <li class="list-group-item"><strong>Email :</strong> <?= htmlspecialchars($profile['email']) ?></li>
-            <li class="list-group-item"><strong>Téléphone :</strong> <?= htmlspecialchars($profile['phone']) ?></li>
-            <li class="list-group-item"><strong>Adresse :</strong> <?= htmlspecialchars($profile['address'] ?? 'Non spécifiée') ?></li>
-          </ul>
-
-          <h5 class="mt-4">Choisir un créneau horaire</h5>
-
-          <form method="POST" action="../controllers/appointmentController.php">
-            <input type="hidden" name="user_id" value="<?= $profile['id'] ?>">
-
-            <div class="mb-3">
-              <label for="location_id" class="form-label">Cabinet</label>
-              <select name="location_id" id="location_id" class="form-select form-select-sm" required>
-                <?php foreach ($locations as $loc): ?>
-                  <option value="<?= $loc['id'] ?>"><?= htmlspecialchars($loc['name']) ?></option>
-                <?php endforeach; ?>
-              </select>
+        <!-- Main Content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Créer un rendez-vous</h1>
             </div>
 
-            <div class="table-responsive mb-3">
-              <table class="table table-sm table-bordered text-center align-middle shadow-sm">
-                <thead class="table-light">
-                  <tr>
-                    <?php
-                      $start = new DateTime();
-                      $start->modify('monday this week');
-                      for ($i = 0; $i < 7; $i++):
-                        $day = clone $start;
-                        $day->modify("+$i day");
-                    ?>
-                      <th><?= $day->format('D d/m') ?></th>
-                    <?php endfor; ?>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php for ($h = 8; $h <= 19; $h++): ?>
-                    <tr>
-                      <?php for ($i = 0; $i < 7; $i++):
-                        $date = clone $start;
-                        $date->modify("+$i day");
-                        $dateStr = $date->format('Y-m-d');
-                        $hour = str_pad($h, 2, '0', STR_PAD_LEFT) . ':00:00';
-                        $value = $dateStr . '|' . $hour;
-                        $selectedLocation = $locations[0]['id'];
-                        $currentCount = $appointmentCounts[$selectedLocation][$dateStr][$hour] ?? 0;
-                      ?>
-                        <td>
-                          <div class="form-check">
-                            <input class="form-check-input" type="radio" name="datetime" value="<?= $value ?>">
-                            <label class="form-check-label small">
-                              <?= $h ?>:00 (<?= $currentCount ?>/3)
-                            </label>
-                          </div>
-                        </td>
-                      <?php endfor; ?>
-                    </tr>
-                  <?php endfor; ?>
-                </tbody>
-              </table>
+            <!-- Appointment Creation Form -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <form id="appointmentForm" action="/pfaa/manage/controllers/appointmentController.php" method="POST">
+                                <!-- CSRF Token -->
+                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                
+                                <!-- Client Selection -->
+                                <div class="mb-3">
+                                    <label for="client_id" class="form-label">Client</label>
+                                    <select class="form-select" id="client_id" name="client_id" required>
+                                        <option value="">Sélectionner un client</option>
+                                        <?php foreach ($clients as $client): ?>
+                                            <option value="<?php echo $client['id']; ?>">
+                                                <?php echo htmlspecialchars($client['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <!-- Location Selection -->
+                                <div class="mb-3">
+                                    <label for="location_id" class="form-label">Lieu</label>
+                                    <select class="form-select" id="location_id" name="location_id" required>
+                                        <option value="">Sélectionner un lieu</option>
+                                        <?php foreach ($locations as $location): ?>
+                                            <option value="<?php echo $location['id']; ?>">
+                                                <?php echo htmlspecialchars($location['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <!-- Date Selection -->
+                                <div class="mb-3">
+                                    <label for="date" class="form-label">Date</label>
+                                    <input type="date" class="form-control" id="date" name="date" required 
+                                           min="<?php echo date('Y-m-d'); ?>">
+                                </div>
+
+                                <!-- Time Selection -->
+                                <div class="mb-3">
+                                    <label for="hour" class="form-label">Heure</label>
+                                    <input type="time" class="form-control" id="hour" name="hour" required 
+                                           min="08:00" max="20:00" step="1800">
+                                </div>
+
+                                <!-- Notes -->
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                                </div>
+
+                                <!-- Submit Button -->
+                                <button type="submit" class="btn btn-primary">Créer le rendez-vous</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Today's Appointments -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Rendez-vous d'aujourd'hui</h5>
+                            <?php if (!empty($today_appointments)): ?>
+                                <div class="list-group">
+                                    <?php foreach ($today_appointments as $appointment): ?>
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1"><?php echo htmlspecialchars($appointment['client_name']); ?></h6>
+                                                <small><?php echo htmlspecialchars($appointment['hour']); ?></small>
+                                            </div>
+                                            <p class="mb-1"><?php echo htmlspecialchars($appointment['location_name']); ?></p>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <p class="text-muted">Aucun rendez-vous aujourd'hui</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Appointments -->
+                    <div class="card mt-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Rendez-vous à venir</h5>
+                            <?php if (!empty($upcoming_appointments)): ?>
+                                <div class="list-group">
+                                    <?php foreach ($upcoming_appointments as $appointment): ?>
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1"><?php echo htmlspecialchars($appointment['client_name']); ?></h6>
+                                                <small><?php echo date('d/m/Y', strtotime($appointment['date'])); ?></small>
+                                            </div>
+                                            <p class="mb-1">
+                                                <?php echo htmlspecialchars($appointment['hour']); ?> - 
+                                                <?php echo htmlspecialchars($appointment['location_name']); ?>
+                                            </p>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <p class="text-muted">Aucun rendez-vous à venir</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <button type="submit" name="book_for_patient_from_grid" class="btn btn-success btn-sm">Confirmer le rendez-vous</button>
-          </form>
-
-          <h5 class="mt-4">Historique des rendez-vous</h5>
-          <ul class="list-group mb-4">
-            <?php foreach ($history as $a): ?>
-            <li class="list-group-item small"><?= htmlspecialchars($a['date']) ?> à <?= htmlspecialchars($a['hour']) ?> — <strong><?= htmlspecialchars($a['status']) ?></strong></li>
-            <?php endforeach; ?>
-          </ul>
-
-          <h5>Rapports médicaux</h5>
-          <ul class="list-group">
-            <?php foreach ($reports as $r): ?>
-            <li class="list-group-item small"><strong><?= htmlspecialchars($r['created_at']) ?>:</strong> <?= nl2br(htmlspecialchars($r['rapport'])) ?></li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-      </div>
-      <?php endif; ?>
+        </main>
     </div>
-  </div>
 </div>
+
+<!-- Form Validation Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('appointmentForm');
+    const dateInput = document.getElementById('date');
+    const hourInput = document.getElementById('hour');
+
+    // Set minimum date to today
+    dateInput.min = new Date().toISOString().split('T')[0];
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate form inputs
+        if (!form.checkValidity()) {
+            e.stopPropagation();
+            form.classList.add('was-validated');
+            return;
+        }
+
+        // Submit form
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Rendez-vous créé avec succès!');
+                window.location.reload();
+            } else {
+                alert(data.message || 'Une erreur est survenue');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Une erreur est survenue lors de la création du rendez-vous');
+        });
+    });
+});
+</script>
+
 <?php include '../partials/footer.php'; ?>
