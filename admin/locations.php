@@ -1,21 +1,79 @@
 <?php
 session_start();
-include '../partials/header.php';
 require '../config/db.php';
+require '../helpers/errorHandler.php';
 
-// Check if user is admin
-if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
-    header('Location: ../login.php');
-    exit;
+// Handle freeze/unfreeze actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['freeze_location'])) {
+        $location_id = $_POST['location_id'] ?? null;
+        if (!$location_id) {
+            redirectWithError('locations.php', "Veuillez sélectionner un cabinet");
+        } else {
+            try {
+                $pdo->beginTransaction();
+                
+                // Update location status
+                $stmt = $pdo->prepare("UPDATE locations SET status = 'frozen' WHERE id = ?");
+                $stmt->execute([$location_id]);
+                
+                // Cancel today's appointments
+                $stmt = $pdo->prepare("
+                    UPDATE appointments 
+                    SET status = 'cancelled'
+                    WHERE location_id = ? 
+                    AND date = CURDATE()
+                    AND hour <= CURTIME()
+                ");
+                $stmt->execute([$location_id]);
+                
+                // Delete future appointments
+                $stmt = $pdo->prepare("
+                    DELETE FROM appointments 
+                    WHERE location_id = ? 
+                    AND (
+                        date > CURDATE() 
+                        OR (date = CURDATE() AND hour > CURTIME())
+                    )
+                ");
+                $stmt->execute([$location_id]);
+                
+                $pdo->commit();
+                redirectWithSuccess('locations.php', "Le cabinet a été gelé avec succès");
+            } catch (PDOException $e) {
+                $pdo->rollBack();
+                error_log("Error freezing location: " . $e->getMessage());
+                redirectWithError('locations.php', "Une erreur est survenue lors du gel du cabinet");
+            }
+        }
+    } elseif (isset($_POST['unfreeze_location'])) {
+        $location_id = $_POST['location_id'] ?? null;
+        if (!$location_id) {
+            redirectWithError('locations.php', "Veuillez sélectionner un cabinet");
+        } else {
+            try {
+                $stmt = $pdo->prepare("UPDATE locations SET status = 'active' WHERE id = ?");
+                $stmt->execute([$location_id]);
+                redirectWithSuccess('locations.php', "Le cabinet a été réactivé avec succès");
+            } catch (PDOException $e) {
+                error_log("Error unfreezing location: " . $e->getMessage());
+                redirectWithError('locations.php', "Une erreur est survenue lors de la réactivation du cabinet");
+            }
+        }
+    }
 }
 
+// Get locations data
 $locations = $pdo->query("SELECT * FROM locations")->fetchAll();
+
+// Include header after all potential redirects
+include '../partials/header.php';
 ?>
 
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+        <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
             <?php include '../partials/sidebar.php'; ?>
         </div>
 
@@ -25,8 +83,20 @@ $locations = $pdo->query("SELECT * FROM locations")->fetchAll();
                 <h1 class="h2">Gestion des Cabinets</h1>
             </div>
 
-            <?php if (isset($_GET['status']) && $_GET['status'] === 'updated'): ?>
-                <div class="alert alert-success">Le statut du cabinet a été mis à jour avec succès.</div>
+            <?php if (isset($_SESSION['success'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <?= htmlspecialchars($_SESSION['success']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['success']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <?= htmlspecialchars($_SESSION['error']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['error']); ?>
             <?php endif; ?>
 
             <div class="table-responsive">
@@ -50,15 +120,15 @@ $locations = $pdo->query("SELECT * FROM locations")->fetchAll();
                                     </span>
                                 </td>
                                 <td>
-                                    <form method="POST" action="../controllers/adminController.php" class="d-inline">
+                                    <form method="POST" class="d-inline">
                                         <input type="hidden" name="location_id" value="<?= $loc['id'] ?>">
                                         <?php if ($loc['status'] === 'active'): ?>
                                             <button type="submit" name="freeze_location" class="btn btn-sm btn-outline-danger" onclick="return confirm('Confirmer le gel de ce cabinet ?')">
-                                                <i class="bi bi-pause-fill"></i> Geler
+                                                <i class="bi bi-snow"></i> Geler
                                             </button>
                                         <?php else: ?>
-                                            <button type="submit" name="unfreeze_location" class="btn btn-sm btn-outline-success" onclick="return confirm('Confirmer l\'activation de ce cabinet ?')">
-                                                <i class="bi bi-play-fill"></i> Activer
+                                            <button type="submit" name="unfreeze_location" class="btn btn-sm btn-outline-success" onclick="return confirm('Confirmer la réactivation de ce cabinet ?')">
+                                                <i class="bi bi-sun"></i> Réactiver
                                             </button>
                                         <?php endif; ?>
                                     </form>

@@ -142,64 +142,6 @@ include 'partials/header.php';
     </div>
 </section>
 
-<style>
-/* Registration Section Styles */
-.registration-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-light);
-    border-radius: 50%;
-}
-
-/* Form Input Styles */
-.input-group-text {
-    background: var(--primary-light);
-    border: none;
-    color: var(--primary);
-}
-
-.form-control {
-    border-left: none;
-}
-
-.form-control:focus {
-    box-shadow: none;
-    border-color: var(--primary);
-}
-
-/* Button Styles */
-.btn-primary {
-    background: var(--primary);
-    border: none;
-    padding: 0.75rem 1.5rem;
-}
-
-.btn-primary:hover {
-    background: var(--primary-dark);
-}
-
-/* Card Styles */
-.card {
-    border-radius: 1rem;
-    transition: transform 0.3s ease;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .card-body {
-        padding: 2rem;
-    }
-}
-</style>
-
 <script>
 // Form validation
 (function () {

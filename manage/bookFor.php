@@ -6,18 +6,18 @@
  * Includes form validation, client selection, and appointment scheduling.
  */
 
-require_once '../config/auth.php';
-requireRole('kine');
-require '../config/db.php';
-include '../partials/header.php';
+session_start();
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/db.php';
 
-// Check if user is logged in
-if (!isset($_SESSION['user']) || !isset($_SESSION['user']['id'])) {
-    header('Location: /pfaa/login.php');
-    exit();
+// Check if user is logged in and is either admin or kine
+if (!isset($_SESSION['loggedin']) || !in_array($_SESSION['role'], ['admin', 'therapist'])) {
+    header('Location: ' . url('login.php'));
+    exit;
 }
 
-$therapist_id = $_SESSION['user']['id'];
+$therapist_id = $_SESSION['id'];
+$selected_date = $_GET['date'] ?? date('Y-m-d');
 
 try {
     /**
@@ -48,16 +48,12 @@ try {
     $locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     /**
-     * Fetch Upcoming Appointments
+     * Fetch Appointments for Selected Date
      * 
      * Retrieves appointments for the current therapist:
      * - Today's appointments
      * - Upcoming appointments (next 7 days)
      */
-    $today = date('Y-m-d');
-    $next_week = date('Y-m-d', strtotime('+7 days'));
-
-    // Today's appointments
     $stmt = $pdo->prepare("
         SELECT a.*, u.name as client_name, l.name as location_name
         FROM appointments a
@@ -66,20 +62,8 @@ try {
         WHERE a.therapist_id = ? AND a.date = ?
         ORDER BY a.hour
     ");
-    $stmt->execute([$_SESSION['user']['id'], $today]);
-    $today_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Upcoming appointments
-    $stmt = $pdo->prepare("
-        SELECT a.*, u.name as client_name, l.name as location_name
-        FROM appointments a
-        JOIN users u ON a.user_id = u.id
-        JOIN locations l ON a.location_id = l.id
-        WHERE a.therapist_id = ? AND a.date > ? AND a.date <= ?
-        ORDER BY a.date, a.hour
-    ");
-    $stmt->execute([$_SESSION['user']['id'], $today, $next_week]);
-    $upcoming_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$therapist_id, $selected_date]);
+    $day_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
     // Log error and display error message
@@ -89,6 +73,9 @@ try {
 
 // Force dark mode
 echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</script>';
+
+// Include header
+include __DIR__ . '/../partials/header.php';
 ?>
 
 <div class="container-fluid">
@@ -101,7 +88,7 @@ echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</s
         <!-- Main Content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1 class="h2">Créer un rendez-vous</h1>
+                <h1 class="h2">Créer un rendez-vous</h1>    
             </div>
 
             <!-- Appointment Creation Form -->
@@ -109,21 +96,19 @@ echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</s
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-body">
-                            <form id="appointmentForm" action="/pfaa/manage/controllers/appointmentController.php" method="POST">
-                                <!-- CSRF Token -->
-                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                                
-                                <!-- Client Selection -->
-                                <div class="mb-3">
-                                    <label for="client_id" class="form-label">Client</label>
-                                    <select class="form-select" id="client_id" name="client_id" required>
-                                        <option value="">Sélectionner un client</option>
-                                        <?php foreach ($clients as $client): ?>
-                                            <option value="<?php echo $client['id']; ?>">
-                                                <?php echo htmlspecialchars($client['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                            <form id="appointmentForm" action="controllers/appointmentController.php" method="POST">
+                                <!-- Client Selection with Search -->
+                                <div class="mb-3 position-relative">
+                                    <label for="clientSearch" class="form-label">Rechercher un patient</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="clientSearch" 
+                                               placeholder="Tapez le nom du patient..." autocomplete="off">
+                                        <span class="input-group-text">
+                                            <i class="bi bi-search"></i>
+                                        </span>
+                                    </div>
+                                    <input type="hidden" id="client_id" name="client_id" required>
+                                    <div id="clientSuggestions" class="list-group mt-1" style="display: none;"></div>
                                 </div>
 
                                 <!-- Location Selection -->
@@ -143,7 +128,7 @@ echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</s
                                 <div class="mb-3">
                                     <label for="date" class="form-label">Date</label>
                                     <input type="date" class="form-control" id="date" name="date" required 
-                                           min="<?php echo date('Y-m-d'); ?>">
+                                           min="<?php echo date('Y-m-d'); ?>" value="<?php echo $selected_date; ?>">
                                 </div>
 
                                 <!-- Time Selection -->
@@ -153,12 +138,6 @@ echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</s
                                            min="08:00" max="20:00" step="1800">
                                 </div>
 
-                                <!-- Notes -->
-                                <div class="mb-3">
-                                    <label for="notes" class="form-label">Notes</label>
-                                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
-                                </div>
-
                                 <!-- Submit Button -->
                                 <button type="submit" class="btn btn-primary">Créer le rendez-vous</button>
                             </form>
@@ -166,14 +145,14 @@ echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</s
                     </div>
                 </div>
 
-                <!-- Today's Appointments -->
+                <!-- Selected Day's Appointments -->
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-body">
-                            <h5 class="card-title">Rendez-vous d'aujourd'hui</h5>
-                            <?php if (!empty($today_appointments)): ?>
+                            <h5 class="card-title">Rendez-vous du <?php echo date('d/m/Y', strtotime($selected_date)); ?></h5>
+                            <?php if (!empty($day_appointments)): ?>
                                 <div class="list-group">
-                                    <?php foreach ($today_appointments as $appointment): ?>
+                                    <?php foreach ($day_appointments as $appointment): ?>
                                         <div class="list-group-item">
                                             <div class="d-flex w-100 justify-content-between">
                                                 <h6 class="mb-1"><?php echo htmlspecialchars($appointment['client_name']); ?></h6>
@@ -184,32 +163,7 @@ echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</s
                                     <?php endforeach; ?>
                                 </div>
                             <?php else: ?>
-                                <p class="text-muted">Aucun rendez-vous aujourd'hui</p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <!-- Upcoming Appointments -->
-                    <div class="card mt-4">
-                        <div class="card-body">
-                            <h5 class="card-title">Rendez-vous à venir</h5>
-                            <?php if (!empty($upcoming_appointments)): ?>
-                                <div class="list-group">
-                                    <?php foreach ($upcoming_appointments as $appointment): ?>
-                                        <div class="list-group-item">
-                                            <div class="d-flex w-100 justify-content-between">
-                                                <h6 class="mb-1"><?php echo htmlspecialchars($appointment['client_name']); ?></h6>
-                                                <small><?php echo date('d/m/Y', strtotime($appointment['date'])); ?></small>
-                                            </div>
-                                            <p class="mb-1">
-                                                <?php echo htmlspecialchars($appointment['hour']); ?> - 
-                                                <?php echo htmlspecialchars($appointment['location_name']); ?>
-                                            </p>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php else: ?>
-                                <p class="text-muted">Aucun rendez-vous à venir</p>
+                                <p class="text-muted">Aucun rendez-vous ce jour</p>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -219,46 +173,145 @@ echo '<script>document.documentElement.setAttribute("data-bs-theme", "dark");</s
     </div>
 </div>
 
-<!-- Form Validation Script -->
+<!-- Form Validation and Client Search Script -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('appointmentForm');
     const dateInput = document.getElementById('date');
-    const hourInput = document.getElementById('hour');
+    const clientSearch = document.getElementById('clientSearch');
+    const clientIdInput = document.getElementById('client_id');
+    const clientSuggestions = document.getElementById('clientSuggestions');
+    let clients = <?php echo json_encode($clients); ?>;
+    let selectedClient = null;
 
-    // Set minimum date to today
-    dateInput.min = new Date().toISOString().split('T')[0];
+    // Update appointments when date changes
+    dateInput.addEventListener('change', function() {
+        window.location.href = '?date=' + this.value;
+    });
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Validate form inputs
-        if (!form.checkValidity()) {
-            e.stopPropagation();
-            form.classList.add('was-validated');
-            return;
+    // Client search functionality
+    clientSearch.addEventListener('input', function() {
+        const searchText = this.value.toLowerCase().trim();
+        let suggestions = [];
+
+        if (searchText.length === 0) {
+            suggestions = clients;
+        } else {
+            suggestions = clients.filter(client => 
+                client.name.toLowerCase().includes(searchText)
+            );
         }
 
-        // Submit form
-        fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Rendez-vous créé avec succès!');
-                window.location.reload();
-            } else {
-                alert(data.message || 'Une erreur est survenue');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Une erreur est survenue lors de la création du rendez-vous');
-        });
+        if (suggestions.length > 0) {
+            clientSuggestions.innerHTML = suggestions.map(client => `
+                <a href="#" class="list-group-item list-group-item-action" 
+                   data-id="${client.id}" 
+                   data-name="${client.name}">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-person-circle me-2"></i>
+                        <span>${client.name}</span>
+                    </div>
+                </a>
+            `).join('');
+            clientSuggestions.style.display = 'block';
+        } else {
+            clientSuggestions.innerHTML = `
+                <div class="list-group-item text-muted">
+                    Aucun patient trouvé
+                </div>
+            `;
+            clientSuggestions.style.display = 'block';
+        }
+    });
+
+    // Handle suggestion click
+    clientSuggestions.addEventListener('click', function(e) {
+        e.preventDefault();
+        const item = e.target.closest('.list-group-item');
+        if (item) {
+            const clientId = item.getAttribute('data-id');
+            const clientName = item.getAttribute('data-name');
+            clientSearch.value = clientName;
+            clientIdInput.value = clientId;
+            selectedClient = { id: clientId, name: clientName };
+            clientSuggestions.style.display = 'none';
+        }
+    });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!clientSearch.contains(e.target) && !clientSuggestions.contains(e.target)) {
+            clientSuggestions.style.display = 'none';
+        }
+    });
+
+    // Clear selection when search is cleared
+    clientSearch.addEventListener('blur', function() {
+        if (this.value === '' && selectedClient) {
+            clientIdInput.value = '';
+            selectedClient = null;
+        }
+    });
+
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        if (!clientIdInput.value) {
+            e.preventDefault();
+            alert('Veuillez sélectionner un patient');
+            return;
+        }
     });
 });
 </script>
 
-<?php include '../partials/footer.php'; ?>
+<style>
+#clientSuggestions {
+    max-height: 300px;
+    overflow-y: auto;
+    position: absolute;
+    width: 100%;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 0.25rem;
+}
+
+#clientSuggestions .list-group-item {
+    cursor: pointer;
+    border: none;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 0.75rem 1rem;
+}
+
+#clientSuggestions .list-group-item:last-child {
+    border-bottom: none;
+}
+
+#clientSuggestions .list-group-item:hover {
+    background-color: var(--bs-primary);
+    color: white;
+}
+
+#clientSuggestions .list-group-item i {
+    font-size: 1.2rem;
+}
+
+.input-group-text {
+    background-color: transparent;
+    border-left: none;
+}
+
+#clientSearch {
+    border-right: none;
+}
+
+#clientSearch:focus {
+    box-shadow: none;
+    border-color: #ced4da;
+}
+
+#clientSearch:focus + .input-group-text {
+    border-color: #ced4da;
+}
+</style>
+
+<?php include __DIR__ . '/../partials/footer.php'; ?>

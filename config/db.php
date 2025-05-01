@@ -1,26 +1,21 @@
 <?php
+// Error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Database configuration
 $host = 'localhost';
-$db   = 'kene_therapy';
-$user = 'root';  // Using root temporarily
-$pass = '';      // Empty password for root
-$charset = 'utf8mb4';
-
-// Enable error reporting temporarily for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
+$dbname = 'kene_therapy';
+$username = 'root';
+$password = '';
 
 try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ]);
 } catch (PDOException $e) {
-    // Show the actual error for debugging
-    die("Database connection error: " . $e->getMessage());
+    error_log("Database connection failed: " . $e->getMessage());
+    die("Une erreur est survenue. Veuillez réessayer plus tard.");
 }

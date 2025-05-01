@@ -162,16 +162,45 @@ class LocationController {
 
     public function isLocationActive($location_id) {
         try {
-            $stmt = $this->pdo->prepare("
-                SELECT status 
-                FROM locations 
-                WHERE id = ?
-            ");
+            $stmt = $this->pdo->prepare("SELECT status FROM locations WHERE id = ?");
             $stmt->execute([$location_id]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             return $result && $result['status'] === 'active';
         } catch (PDOException $e) {
             error_log("Error checking location status: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Freeze a location
+    public function freezeLocation($location_id) {
+        try {
+            $this->pdo->beginTransaction();
+            
+            // Update location status
+            $stmt = $this->pdo->prepare("UPDATE locations SET status = 'frozen' WHERE id = ?");
+            $stmt->execute([$location_id]);
+            
+            // Delete future appointments
+            $stmt = $this->pdo->prepare("DELETE FROM appointments WHERE date >= CURDATE() AND location_id = ?");
+            $stmt->execute([$location_id]);
+            
+            $this->pdo->commit();
+            return true;
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            error_log("Error freezing location: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Unfreeze a location
+    public function unfreezeLocation($location_id) {
+        try {
+            $stmt = $this->pdo->prepare("UPDATE locations SET status = 'active' WHERE id = ?");
+            return $stmt->execute([$location_id]);
+        } catch (PDOException $e) {
+            error_log("Error unfreezing location: " . $e->getMessage());
             return false;
         }
     }

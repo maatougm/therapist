@@ -20,35 +20,34 @@ $featured_therapists = $stmt->fetchAll();
 <!-- Hero Section -->
 <section class="hero-section position-relative overflow-hidden">
     <div class="container">
-        <div class="row min-vh-75 align-items-center">
+        <div class="row min-vh-100 align-items-center">
             <div class="col-lg-6">
-                <h1 class="display-4 fw-bold text-primary mb-4">
-                    Votre santé, notre priorité
+                <h1 class="display-3 fw-bold text-primary mb-4 animate__animated animate__fadeInUp">
+                    Votre bien-être commence ici
                 </h1>
-                <p class="lead text-muted mb-4">
-                    Des soins de kinésithérapie personnalisés pour votre bien-être. 
-                    Prenez rendez-vous facilement avec nos thérapeutes qualifiés.
+                <p class="lead text-muted mb-4 animate__animated animate__fadeInUp animate__delay-1s">
+                    Des soins de kinésithérapie personnalisés et professionnels pour votre santé et votre confort.
                 </p>
-                <div class="d-flex gap-3">
-                    <a href="book_appointment.php" class="btn btn-primary btn-lg">
+                <div class="d-flex gap-3 animate__animated animate__fadeInUp animate__delay-2s">
+                    <a href="book_appointment.php" class="btn btn-primary btn-lg px-4">
                         <i class="fas fa-calendar-plus me-2"></i>
                         Prendre RDV
                     </a>
-                    <a href="#services" class="btn btn-outline-primary btn-lg">
+                    <a href="#services" class="btn btn-outline-primary btn-lg px-4">
                         <i class="fas fa-info-circle me-2"></i>
-                        Nos services
+                        Découvrir
                     </a>
                 </div>
             </div>
             <div class="col-lg-6 d-none d-lg-block">
-                <div class="hero-image position-relative">
-                    <img src="assets/images/hero-image.jpg" alt="Kinésithérapie" class="img-fluid rounded-4 shadow">
-                    <div class="hero-stats position-absolute bottom-0 start-0 bg-white p-3 rounded-4 shadow-sm">
-                        <div class="row g-3">
+                <div class="hero-image position-relative animate__animated animate__fadeIn">
+                    <img src="assets/images/hero-image.jpg" alt="Kinésithérapie" class="img-fluid rounded-4 shadow-lg">
+                    <div class="hero-stats position-absolute bottom-0 start-0 bg-white p-4 rounded-4 shadow-lg">
+                        <div class="row g-4">
                             <div class="col-6">
                                 <div class="text-center">
                                     <h3 class="text-primary mb-0">50+</h3>
-                                    <small class="text-muted">Kinésithérapeutes</small>
+                                    <small class="text-muted">Professionnels</small>
                                 </div>
                             </div>
                             <div class="col-6">
@@ -67,11 +66,11 @@ $featured_therapists = $stmt->fetchAll();
 </section>
 
 <!-- Services Section -->
-<section id="services" class="py-5">
+<section id="services" class="py-5 bg-light">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold text-primary mb-3">Nos Services</h2>
-            <p class="lead text-muted">Des soins adaptés à vos besoins</p>
+            <h2 class="display-4 fw-bold text-primary mb-3">Nos Services</h2>
+            <p class="lead text-muted">Des soins adaptés à vos besoins spécifiques</p>
         </div>
         <div class="row g-4">
             <div class="col-md-4">
@@ -118,10 +117,10 @@ $featured_therapists = $stmt->fetchAll();
 </section>
 
 <!-- Featured Therapists Section -->
-<section class="py-5 bg-light">
+<section class="py-5">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold text-primary mb-3">Nos Kinésithérapeutes</h2>
+            <h2 class="display-4 fw-bold text-primary mb-3">Nos Kinésithérapeutes</h2>
             <p class="lead text-muted">Des professionnels qualifiés à votre service</p>
         </div>
         <div class="row g-4">
@@ -149,18 +148,84 @@ $featured_therapists = $stmt->fetchAll();
     </div>
 </section>
 
+<!-- Testimonials Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-4 fw-bold text-primary mb-3">Témoignages</h2>
+            <p class="lead text-muted">Ce que nos patients disent de nous</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="testimonial-card card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="testimonial-avatar me-3">
+                                <i class="fas fa-user fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0">Marie D.</h5>
+                                <small class="text-muted">Patient depuis 2 ans</small>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-0">
+                            "Un suivi personnalisé et des résultats rapides. Je recommande vivement !"
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="testimonial-card card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="testimonial-avatar me-3">
+                                <i class="fas fa-user fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0">Jean P.</h5>
+                                <small class="text-muted">Patient depuis 1 an</small>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-0">
+                            "Des professionnels à l'écoute et des soins de qualité. Très satisfait !"
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="testimonial-card card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="testimonial-avatar me-3">
+                                <i class="fas fa-user fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0">Sophie L.</h5>
+                                <small class="text-muted">Patient depuis 3 ans</small>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-0">
+                            "Une équipe compétente et un accueil chaleureux. Je ne vais nulle part ailleurs !"
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- CTA Section -->
 <section class="py-5 bg-primary text-white">
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h2 class="display-5 fw-bold mb-3">Prêt à prendre soin de votre santé ?</h2>
+                <h2 class="display-4 fw-bold mb-3">Prêt à prendre soin de votre santé ?</h2>
                 <p class="lead mb-0">
                     Réservez votre consultation en ligne en quelques clics.
                 </p>
             </div>
             <div class="col-lg-4 text-lg-end">
-                <a href="book_appointment.php" class="btn btn-light btn-lg">
+                <a href="book_appointment.php" class="btn btn-light btn-lg px-4">
                     <i class="fas fa-calendar-plus me-2"></i>
                     Prendre RDV
                 </a>
@@ -218,9 +283,70 @@ $featured_therapists = $stmt->fetchAll();
     border-radius: 50%;
 }
 
+/* Testimonial Card Styles */
+.testimonial-card {
+    transition: transform 0.3s ease;
+}
+
+.testimonial-card:hover {
+    transform: translateY(-5px);
+}
+
+.testimonial-avatar {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    border-radius: 50%;
+}
+
 /* CTA Section Styles */
 .cta-section {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+/* Animation Classes */
+.animate__animated {
+    animation-duration: 1s;
+    animation-fill-mode: both;
+}
+
+.animate__fadeInUp {
+    animation-name: fadeInUp;
+}
+
+.animate__fadeIn {
+    animation-name: fadeIn;
+}
+
+.animate__delay-1s {
+    animation-delay: 1s;
+}
+
+.animate__delay-2s {
+    animation-delay: 2s;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 40px, 0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 </style>
 

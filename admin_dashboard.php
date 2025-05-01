@@ -1,14 +1,37 @@
 <?php
+// Start the session if it's not already started
+// This is often done in a shared header or config file, but ensure it's done before accessing $_SESSION
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Include database configuration
 require_once 'config/db.php';
+
+// Check if user is logged in
+if (!isset($_SESSION['loggedin']) || !isset($_SESSION['id'])) {
+    header('Location: login.php');
+    exit();
+}
 
 // Get current view (weekly or monthly)
 $view = isset($_GET['view']) ? $_GET['view'] : 'weekly';
 
-// Get user data directly from database
+// Get user data from session
+$loggedInUserId = $_SESSION['id'];
+
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([1]); // Using a default ID since we removed auth
+$stmt->execute([$loggedInUserId]);
 $user = $stmt->fetch();
+
+// Check if user was found and set the session role
+if ($user && isset($user['role'])) {
+    $_SESSION['role'] = $user['role'];
+} else {
+    // Handle case where user is not found
+    header("Location: login.php");
+    exit();
+}
 
 // Get current week dates
 $today = new DateTime();
@@ -21,27 +44,25 @@ $weekEnd->modify('+6 days');
 $monthStart = new DateTime('first day of this month');
 $monthEnd = new DateTime('last day of this month');
 
-// Fetch appointments based on view
+// Fetch appointments based on view (rest of your existing fetching logic)
 if ($view === 'weekly') {
     $stmt = $pdo->prepare("
-        SELECT a.*, u.name as user_name, t.name as therapist_name, l.name as location_name
+        SELECT a.*, u.name as client_name, l.name as location_name
         FROM appointments a
         JOIN users u ON a.user_id = u.id
-        JOIN users t ON a.therapist_id = t.id
         JOIN locations l ON a.location_id = l.id
         WHERE a.date BETWEEN ? AND ?
-        ORDER BY a.date, a.hour
+        ORDER BY a.date ASC, a.hour ASC
     ");
     $stmt->execute([$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')]);
 } else {
     $stmt = $pdo->prepare("
-        SELECT a.*, u.name as user_name, t.name as therapist_name, l.name as location_name
+        SELECT a.*, u.name as client_name, l.name as location_name
         FROM appointments a
         JOIN users u ON a.user_id = u.id
-        JOIN users t ON a.therapist_id = t.id
         JOIN locations l ON a.location_id = l.id
         WHERE a.date BETWEEN ? AND ?
-        ORDER BY a.date, a.hour
+        ORDER BY a.date ASC, a.hour ASC
     ");
     $stmt->execute([$monthStart->format('Y-m-d'), $monthEnd->format('Y-m-d')]);
 }
@@ -70,49 +91,49 @@ $monthlyStats = array_fill(1, 31, 0);
 foreach ($appointments as $appointment) {
     // Hourly stats
     $hour = (int)substr($appointment['hour'], 0, 2);
-    $hourlyStats[$hour]++;
-    
+    if (isset($hourlyStats[$hour])) { // Check if the hour key exists (8-18)
+        $hourlyStats[$hour]++;
+    }
+
     // Weekly stats
-    $dayOfWeek = (int)date('w', strtotime($appointment['date']));
+    $dayOfWeek = (int)date('w', strtotime($appointment['date'])); // 0 for Sunday, 6 for Saturday
+     // Adjust for 0-based Monday start if needed, but array_fill(0, 7, 0) matches 0-6 days
     $weeklyStats[$dayOfWeek]++;
-    
+
     // Monthly stats
     $dayOfMonth = (int)date('j', strtotime($appointment['date']));
     $monthlyStats[$dayOfMonth]++;
 }
 
+// Include header
 include 'partials/header.php';
+
 ?>
 
-<!-- Main Container -->
 <div class="container-fluid">
     <div class="row">
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
-            <?php include 'partials/sidebar.php'; ?>
-        </div>
+            <?php include 'partials/sidebar.php'; ?> </div>
 
-        <!-- Main Content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">Tableau de bord administrateur</h1>
-                <div class="btn-toolbar mb-2 mb-md-0">
-                    <div class="btn-group me-2">
+                 <div class="btn-toolbar mb-2 mb-md-0">
+                     <div class="btn-group me-2">
                         <a href="?view=weekly" class="btn btn-sm <?= $view === 'weekly' ? 'btn-primary' : 'btn-outline-secondary' ?>">
                             Vue Hebdomadaire
                         </a>
                         <a href="?view=monthly" class="btn btn-sm <?= $view === 'monthly' ? 'btn-primary' : 'btn-outline-secondary' ?>">
-                            Vue Mensuelle
+                             Vue Mensuelle
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Statistics Cards -->
             <div class="row mb-4">
                 <div class="col-md-3">
                     <div class="card text-white bg-primary">
-                        <div class="card-body">
+                         <div class="card-body">
                             <h5 class="card-title">Utilisateurs</h5>
                             <p class="card-text display-6"><?= count($users) ?></p>
                         </div>
@@ -128,7 +149,7 @@ include 'partials/header.php';
                 </div>
                 <div class="col-md-3">
                     <div class="card text-white bg-info">
-                        <div class="card-body">
+                         <div class="card-body">
                             <h5 class="card-title">RDV <?= $view === 'weekly' ? 'cette semaine' : 'ce mois' ?></h5>
                             <p class="card-text display-6"><?= count($appointments) ?></p>
                         </div>
@@ -144,15 +165,14 @@ include 'partials/header.php';
                 </div>
             </div>
 
-            <!-- Charts Row 1 -->
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0">Heures de pointe</h5>
+                             <h5 class="mb-0">Heures de pointe</h5>
                         </div>
                         <div class="card-body">
-                            <canvas id="hourlyChart" height="200"></canvas>
+                             <canvas id="hourlyChart" height="200"></canvas>
                         </div>
                     </div>
                 </div>
@@ -162,7 +182,7 @@ include 'partials/header.php';
                             <h5 class="mb-0">RDV par jour <?= $view === 'weekly' ? 'de la semaine' : 'du mois' ?></h5>
                         </div>
                         <div class="card-body">
-                            <canvas id="<?= $view === 'weekly' ? 'weeklyChart' : 'monthlyChart' ?>" height="200"></canvas>
+                             <canvas id="<?= $view === 'weekly' ? 'weeklyChart' : 'monthlyChart' ?>" height="200"></canvas>
                         </div>
                     </div>
                 </div>
@@ -173,7 +193,6 @@ include 'partials/header.php';
 
 <?php include 'partials/footer.php'; ?>
 
-<!-- Add Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Hourly Chart
@@ -202,18 +221,20 @@ new Chart(document.getElementById('hourlyChart'), {
     }
 });
 
-<?php if ($view === 'weekly'): ?>
-// Weekly Chart
-new Chart(document.getElementById('weeklyChart'), {
-    type: 'line',
+// Weekly/Monthly Chart
+new Chart(document.getElementById('<?= $view === 'weekly' ? 'weeklyChart' : 'monthlyChart' ?>'), {
+    type: 'bar',
     data: {
-        labels: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'],
+        labels: <?= $view === 'weekly' ?
+            json_encode(['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']) :
+            json_encode(range(1, 31))
+        ?>,
         datasets: [{
             label: 'Nombre de RDV',
-            data: <?= json_encode($weeklyStats) ?>,
-            fill: false,
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1
+            data: <?= $view === 'weekly' ? json_encode($weeklyStats) : json_encode($monthlyStats) ?>,
+            backgroundColor: 'rgba(75, 192, 192, 0.5)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
         }]
     },
     options: {
@@ -228,31 +249,4 @@ new Chart(document.getElementById('weeklyChart'), {
         }
     }
 });
-<?php else: ?>
-// Monthly Chart
-new Chart(document.getElementById('monthlyChart'), {
-    type: 'line',
-    data: {
-        labels: <?= json_encode(range(1, 31)) ?>,
-        datasets: [{
-            label: 'Nombre de RDV',
-            data: <?= json_encode($monthlyStats) ?>,
-            fill: false,
-            borderColor: 'rgb(153, 102, 255)',
-            tension: 0.1
-        }]
-    },
-    options: {
-        responsive: true,
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 1
-                }
-            }
-        }
-    }
-});
-<?php endif; ?>
 </script>

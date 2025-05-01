@@ -1,10 +1,23 @@
 <?php
-require_once 'config/db.php';
+session_start();
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/config/db.php';
 
-// Get user data directly from database
+// Check if user is logged in
+if (!isset($_SESSION['loggedin'])) {
+    header('Location: ' . url('login.php'));
+    exit;
+}
+
+// Get user data from database
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([1]); // Using a default ID since we removed auth
+$stmt->execute([$_SESSION['id']]);
 $user = $stmt->fetch();
+
+if (!$user) {
+    header('Location: ' . url('login.php'));
+    exit;
+}
 
 // Initialize variables for form data and messages
 $success = '';
@@ -84,10 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute($params);
 
             // Update session data
-            $user['name'] = $name;
-            $user['email'] = $email;
-            if (!empty($phone)) $user['phone'] = $phone;
-            if (!empty($address)) $user['address'] = $address;
+            $_SESSION['email'] = $email;
 
             $success = 'Profil mis à jour avec succès';
         } catch (PDOException $e) {
@@ -95,6 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Include header
+include __DIR__ . '/partials/header.php';
 ?>
 
 <!-- Profile Page Section -->
@@ -133,12 +146,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <!-- Success Message -->
                     <?php if ($success): ?>
-                        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <?= htmlspecialchars($success) ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     <?php endif; ?>
 
                     <!-- Error Message -->
                     <?php if ($error): ?>
-                        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <?= htmlspecialchars($error) ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     <?php endif; ?>
 
                     <!-- Profile Form -->
@@ -249,4 +270,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </div>
 
-<?php include 'partials/footer.php'; ?>
+<?php include __DIR__ . '/partials/footer.php'; ?>

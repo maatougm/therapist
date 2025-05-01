@@ -1,133 +1,173 @@
 <?php
+// Include configuration
+require_once __DIR__ . '/../config/config.php';
 ?>
-
 
 <!DOCTYPE html>
 <html lang="fr" data-bs-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KeneTherapy</title>
 
-  <!-- Bootstrap & Icons -->
+  <!-- Bootstrap 5.3.3 & FontAwesome -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="<?= url('assets/css/sidebar.css') ?>">
+  <!-- Sidebar CSS -->
+  <link rel="stylesheet" href="<?php echo url('assets/css/sidebar.css'); ?>">
+
+  <!-- Custom Theme CSS -->
+  <link rel="stylesheet" href="<?php echo url('assets/css/theme.css'); ?>">
 
   <style>
-    :root {
-      --primary: #2B7A78;      /* Medical Teal */
-      --secondary: #17252A;    /* Dark Navy */
-      --accent: #3AAFA9;       /* Light Teal */
-      --light: #DEF2F1;        /* Very Light Teal */
-      --text: #2C3E50;         /* Dark Blue-Gray */
-      --background: #FEFFFF;   /* Pure White */
-      --nav-bg: var(--secondary);
-      --nav-text: var(--light);
-      --success: #4CAF50;      /* Medical Green */
-      --warning: #FF9800;      /* Medical Orange */
-      --danger: #F44336;       /* Medical Red */
-    }
-
-    [data-bs-theme="dark"] {
-      --primary: #3AAFA9;      /* Light Teal */
-      --secondary: #17252A;    /* Dark Navy */
-      --accent: #2B7A78;       /* Medical Teal */
-      --light: #DEF2F1;        /* Very Light Teal */
-      --text: #FEFFFF;         /* White */
-      --background: #17252A;   /* Dark Navy */
-      --nav-bg: var(--secondary);
-      --nav-text: var(--light);
-    }
-
-    body {
-      background-color: var(--background);
-      color: var(--text);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      font-size: .875rem;
-    }
-
     .navbar {
-      background-color: var(--nav-bg) !important;
-      border-bottom: 2px solid var(--primary);
+      background-color: var(--bs-dark);
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .navbar-brand {
-      color: var(--primary) !important;
-      font-weight: 700;
+      color: var(--bs-light);
+      font-weight: 600;
     }
 
     .navbar-brand i {
-      color: var(--accent);
+      color: var(--bs-primary);
+      margin-right: 0.5rem;
     }
 
     .nav-link {
-      color: var(--nav-text) !important;
+      color: var(--bs-light);
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
     }
 
     .nav-link:hover {
-      color: var(--primary) !important;
+      color: var(--bs-primary);
     }
 
-    .btn-primary {
-      background-color: var(--primary);
-      border-color: var(--primary);
+    .theme-toggle {
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: all 0.3s ease;
     }
 
-    .btn-primary:hover {
-      background-color: var(--accent);
-      border-color: var(--accent);
+    .theme-toggle:hover {
+      background-color: rgba(255,255,255,0.1);
     }
 
-    .card {
-      background-color: var(--background);
-      border-color: var(--primary);
+    .logo-right {
+      height: 40px;
+      margin-left: 1rem;
     }
 
-    .table {
-      color: var(--text);
+    .header-buttons {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
-    .table thead th {
-      background-color: var(--secondary);
-      color: var(--light);
+    .header-buttons .btn {
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.5rem;
+      transition: all 0.3s ease;
     }
 
-    .feather {
-      width: 16px;
-      height: 16px;
-      vertical-align: text-bottom;
+    .header-buttons .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    /* Dark Mode Fixes */
+    [data-bs-theme="dark"] .navbar {
+      background-color: #212529;
+    }
+
+    [data-bs-theme="dark"] .navbar-brand,
+    [data-bs-theme="dark"] .nav-link {
+      color: #fff;
+    }
+
+    [data-bs-theme="dark"] .theme-toggle {
+      color: #fff;
+    }
+
+    [data-bs-theme="dark"] .theme-toggle:hover {
+      background-color: rgba(255, 255, 255, 0.1);
     }
   </style>
 </head>
+
 <body>
   <!-- Top Navigation -->
   <nav class="navbar navbar-expand-lg">
     <div class="container-fluid">
-      <a class="navbar-brand" href="index.php">
-        <i class="fas fa-heartbeat"></i>
-        KeneTherapy
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <a class="nav-link" href="index.php">
-              <i class="fas fa-home"></i>
-              Accueil
+      <!-- Left side: Brand and Toggle -->
+      <div class="d-flex align-items-center">
+        <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <a class="navbar-brand" href="/pfaa/index.php">
+          <i class="fas fa-heartbeat"></i> KeneTherapy
+        </a>
+      </div>
+
+      <!-- Right side: Theme Toggle, User Menu, and Logo -->
+      <div class="d-flex align-items-center">
+        <!-- Theme Toggle -->
+        <div class="theme-toggle me-3" id="themeToggle">
+          <i class="fas fa-moon"></i>
+        </div>
+
+        <?php if (isset($_SESSION['loggedin'])): ?>
+          <!-- Header Buttons -->
+          <div class="header-buttons">
+            <a href="/pfaa/profile.php" class="btn btn-outline-primary" title="Profil">
+              <i class="fas fa-user me-1"></i>
+              <?php echo htmlspecialchars($_SESSION['name'] ?? 'Utilisateur'); ?>
             </a>
-          </li>
-        </ul>
+            <a href="/pfaa/logout.php" class="btn btn-outline-danger" title="Déconnexion">
+              <i class="fas fa-sign-out-alt"></i>
+            </a>
+          </div>
+        <?php endif; ?>
+
+        <!-- Logo -->
+        <img src="<?php echo url('assets/images/logo.png'); ?>" alt="Logo" class="logo-right">
       </div>
     </div>
   </nav>
 
-  <!-- Main Content Container -->
+  <!-- Theme Toggle Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const themeToggle = document.getElementById('themeToggle');
+      const html = document.documentElement;
+      const icon = themeToggle.querySelector('i');
+      
+      // Check for saved theme preference
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        html.setAttribute('data-bs-theme', savedTheme);
+        icon.className = savedTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+      }
+
+      // Toggle theme
+      themeToggle.addEventListener('click', function() {
+        const currentTheme = html.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        html.setAttribute('data-bs-theme', newTheme);
+        icon.className = newTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+        
+        // Save preference
+        localStorage.setItem('theme', newTheme);
+      });
+    });
+  </script>
+
+  <!-- Start Main Container -->
   <div class="container-fluid">
     <div class="row">
-</body>
-</html>

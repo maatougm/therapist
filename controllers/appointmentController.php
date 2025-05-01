@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/locationController.php';
 
@@ -78,11 +77,9 @@ class AppointmentController {
             $sql = "
                 SELECT a.*, 
                        u.name as client_name,
-                       t.name as therapist_name,
                        l.name as location_name
                 FROM appointments a
                 JOIN users u ON a.user_id = u.id
-                JOIN users t ON a.therapist_id = t.id
                 LEFT JOIN locations l ON a.location_id = l.id
                 WHERE 1=1
             ";
@@ -96,11 +93,6 @@ class AppointmentController {
             if (!empty($filters['end_date'])) {
                 $sql .= " AND a.appointment_date <= ?";
                 $params[] = $filters['end_date'];
-            }
-
-            if (!empty($filters['therapist_id'])) {
-                $sql .= " AND a.therapist_id = ?";
-                $params[] = $filters['therapist_id'];
             }
 
             if (!empty($filters['user_id'])) {
@@ -130,11 +122,9 @@ class AppointmentController {
             $stmt = $this->db->prepare("
                 SELECT a.*, 
                        u.name as client_name,
-                       t.name as therapist_name,
                        l.name as location_name
                 FROM appointments a
                 JOIN users u ON a.user_id = u.id
-                JOIN users t ON a.therapist_id = t.id
                 LEFT JOIN locations l ON a.location_id = l.id
                 WHERE a.id = ?
             ");
@@ -149,20 +139,17 @@ class AppointmentController {
     // Create new appointment
     public function createAppointment($data) {
         try {
-            // Validate required fields
-            $required_fields = ['client_id', 'date', 'hour', 'therapist_id', 'location_id'];
+            $required_fields = ['client_id', 'date', 'hour', 'location_id'];
             foreach ($required_fields as $field) {
                 if (empty($data[$field])) {
                     return ['success' => false, 'message' => "Tous les champs obligatoires doivent être remplis."];
                 }
             }
 
-            // Check if location is active
             if (!$this->locationController->isLocationActive($data['location_id'])) {
                 return ['success' => false, 'message' => "Le lieu sélectionné n'est pas disponible."];
             }
 
-            // Check if time slot is available (no more than 3 appointments per hour per location)
             $stmt = $this->db->prepare("
                 SELECT COUNT(*) 
                 FROM appointments 
@@ -181,7 +168,6 @@ class AppointmentController {
                 return ['success' => false, 'message' => "Ce créneau horaire est complet pour ce lieu."];
             }
 
-            // Check if client already has an appointment at this time
             $stmt = $this->db->prepare("
                 SELECT COUNT(*) 
                 FROM appointments 
@@ -200,37 +186,24 @@ class AppointmentController {
                 return ['success' => false, 'message' => "Le client a déjà un rendez-vous à cette heure."];
             }
 
-            // Determine if the appointment is created by a kine
-            $stmt = $this->db->prepare("SELECT role FROM users WHERE id = ?");
-            $stmt->execute([$data['therapist_id']]);
-            $therapist = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Set status to 'confirmed' if created by a kine, otherwise 'pending'
-            $status = ($therapist['role'] === 'kine') ? 'confirmed' : 'pending';
-
-            // Prepare the SQL statement
             $stmt = $this->db->prepare("
                 INSERT INTO appointments (
                     user_id, 
-                    therapist_id, 
                     location_id, 
                     date, 
                     hour, 
                     notes, 
                     status, 
                     created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                ) VALUES (?, ?, ?, ?, ?, 'pending', NOW())
             ");
 
-            // Execute the statement with the form data
             $stmt->execute([
                 $data['client_id'],
-                $data['therapist_id'],
                 $data['location_id'],
                 $data['date'],
                 $data['hour'],
-                $data['notes'] ?? null,
-                $status
+                $data['notes'] ?? null
             ]);
 
             return ['success' => true, 'message' => "Le rendez-vous a été créé avec succès."];
@@ -330,72 +303,38 @@ class AppointmentController {
     // Get available time slots for a therapist on a specific date
     public function getAvailableTimeSlots($therapistId, $date, $duration = 60) {
         try {
-            // Get therapist's working hours
             $stmt = $this->db->prepare("
-                SELECT working_hours FROM users WHERE id = ?
-            ");
-            $stmt->execute([$therapistId]);
-            $workingHours = json_decode($stmt->fetchColumn(), true);
-
-            if (empty($workingHours)) {
-                return ['success' => false, 'message' => 'Therapist has no working hours set'];
-            }
-
-            $dayOfWeek = strtolower(date('l', strtotime($date)));
-            if (!isset($workingHours[$dayOfWeek]) || !$workingHours[$dayOfWeek]['enabled']) {
-                return ['success' => false, 'message' => 'Therapist is not working on this day'];
-            }
-
-            $startTime = strtotime($workingHours[$dayOfWeek]['start']);
-            $endTime = strtotime($workingHours[$dayOfWeek]['end']);
-            $interval = $duration * 60; // Convert to seconds
-
-            // Get existing appointments
-            $stmt = $this->db->prepare("
-                SELECT start_time, end_time FROM appointments
-                WHERE therapist_id = ? AND appointment_date = ? AND status != 'cancelled'
+                SELECT hour
+                FROM appointments
+                WHERE therapist_id = ?
+                AND date = ?
+                AND status != 'cancelled'
             ");
             $stmt->execute([$therapistId, $date]);
-            $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $bookedSlots = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
             $availableSlots = [];
-            $currentTime = $startTime;
+            $startTime = strtotime('08:00');
+            $endTime = strtotime('20:00');
 
-            while ($currentTime + $interval <= $endTime) {
-                $slotStart = date('H:i:s', $currentTime);
-                $slotEnd = date('H:i:s', $currentTime + $interval);
-                $isAvailable = true;
-
-                foreach ($appointments as $appointment) {
-                    if (($slotStart >= $appointment['start_time'] && $slotStart < $appointment['end_time']) ||
-                        ($slotEnd > $appointment['start_time'] && $slotEnd <= $appointment['end_time']) ||
-                        ($slotStart <= $appointment['start_time'] && $slotEnd >= $appointment['end_time'])) {
-                        $isAvailable = false;
-                        break;
-                    }
+            for ($time = $startTime; $time < $endTime; $time += $duration * 60) {
+                $timeStr = date('H:i', $time);
+                if (!in_array($timeStr, $bookedSlots)) {
+                    $availableSlots[] = $timeStr;
                 }
-
-                if ($isAvailable) {
-                    $availableSlots[] = [
-                        'start' => $slotStart,
-                        'end' => $slotEnd
-                    ];
-                }
-
-                $currentTime += $interval;
             }
 
-            return ['success' => true, 'slots' => $availableSlots];
-        } catch (PDOException $e) {
+            return $availableSlots;
+        } catch (Exception $e) {
             error_log("Error getting available time slots: " . $e->getMessage());
-            return ['success' => false, 'message' => 'Error getting available time slots'];
+            return [];
         }
     }
 }
 
 // Check if user is logged in
-if (!isset($_SESSION['user']) || !isset($_SESSION['user']['id'])) {
-    header('Location: /pfaa/login.php');
+if (!isset($_SESSION['loggedin']) || !isset($_SESSION['id'])) {
+    header('Location: login.php');
     exit();
 }
 
@@ -479,24 +418,23 @@ function createAppointment() {
         $stmt = $pdo->prepare("
             INSERT INTO appointments (
                 user_id, 
-                therapist_id, 
                 location_id, 
                 date, 
                 hour, 
                 notes, 
                 status, 
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW())
         ");
 
         // Execute the statement with the form data
         $stmt->execute([
             $_POST['client_id'],
-            $_POST['therapist_id'],
             $_POST['location_id'],
             $_POST['date'],
             $_POST['hour'],
-            $_POST['notes'] ?? null
+            $_POST['notes'] ?? null,
+            'pending'
         ]);
 
         // Set success message
@@ -546,19 +484,9 @@ if (isset($_POST['book_appointment'])) {
         exit();
     }
 
-    // Get therapist assigned to this location
-    $stmt = $pdo->prepare("SELECT therapist_id FROM therapist_locations WHERE location_id = ? LIMIT 1");
-    $stmt->execute([$location_id]);
-    $therapist_id = $stmt->fetchColumn();
-
-    if (!$therapist_id) {
-        header("Location: ../user_dashboard.php?error=no_therapist");
-        exit();
-    }
-
     // Book it
-    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, therapist_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, ?, 'confirmed')");
-    $stmt->execute([$user_id, $therapist_id, $date, $hour, $location_id]);
+    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, 'confirmed')");
+    $stmt->execute([$user_id, $date, $hour, $location_id]);
 
     header("Location: ../user_dashboard.php?success=1");
     exit();
@@ -608,20 +536,10 @@ if (isset($_POST['book_for_patient']) || isset($_POST['book_for_patient_from_gri
         header("Location: ../kine_dashboard.php?error=slot_full");
         exit();
     }
-
-    // Get therapist assigned to this location
-    $stmt = $pdo->prepare("SELECT therapist_id FROM therapist_locations WHERE location_id = ? AND therapist_id = ? LIMIT 1");
-    $stmt->execute([$location_id, $_SESSION['user']['id']]);
-    $therapist_id = $stmt->fetchColumn();
-
-    if (!$therapist_id) {
-        header("Location: ../kine_dashboard.php?error=not_assigned");
-        exit();
-    }
     
     // Book it
-    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, therapist_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, ?, 'confirmed')");
-    $stmt->execute([$user_id, $therapist_id, $date, $hour, $location_id]);
+    $stmt = $pdo->prepare("INSERT INTO appointments (user_id, date, hour, location_id, status) VALUES (?, ?, ?, ?, 'confirmed')");
+    $stmt->execute([$user_id, $date, $hour, $location_id]);
 
     header("Location: ../kine_dashboard.php?added=1");
     exit();
