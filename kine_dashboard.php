@@ -59,8 +59,7 @@ else {
 $locations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-// Get selected location IDs from GET or Session
-// Using a therapist-specific session key for selected locations
+// Get selected location IDs from GET, Session, or Cookie
 if (isset($_GET['location_id'])) {
     $requested_location_ids = explode(',', $_GET['location_id']);
     // Filter requested location IDs to ensure they are valid and active for the current user context
@@ -71,16 +70,32 @@ if (isset($_GET['location_id'])) {
             $valid_location_ids[] = $req_id;
         }
     }
-     $_SESSION['selected_locations'][$therapist_id] = $valid_location_ids; // Store per therapist/admin view
+    $_SESSION['selected_locations'][$therapist_id] = $valid_location_ids; // Store per therapist/admin view
+    
+    // Save to cookie
+    setcookie('selected_locations_' . $therapist_id, implode(',', $valid_location_ids), time() + (86400 * 30), "/"); // 30 days expiry
+} else if (isset($_COOKIE['selected_locations_' . $therapist_id])) {
+    // If no GET parameter but cookie exists, use cookie value
+    $cookie_location_ids = explode(',', $_COOKIE['selected_locations_' . $therapist_id]);
+    $valid_location_ids = [];
+    $available_location_ids = array_column($locations, 'id');
+    foreach ($cookie_location_ids as $cookie_id) {
+        if (in_array($cookie_id, $available_location_ids)) {
+            $valid_location_ids[] = $cookie_id;
+        }
+    }
+    $_SESSION['selected_locations'][$therapist_id] = $valid_location_ids;
 }
 
 // Use selected locations from session for the current therapist/admin view, default if empty
 $selected_location_ids = $_SESSION['selected_locations'][$therapist_id] ?? [];
 
-// If no locations are selected (either from GET or session), default to the first available location
+// If no locations are selected (either from GET, cookie, or session), default to the first available location
 if (empty($selected_location_ids) && !empty($locations)) {
     $selected_location_ids = [reset($locations)['id']];
     $_SESSION['selected_locations'][$therapist_id] = $selected_location_ids;
+    // Save default to cookie
+    setcookie('selected_locations_' . $therapist_id, implode(',', $selected_location_ids), time() + (86400 * 30), "/");
 }
 
 
@@ -136,22 +151,23 @@ if (!empty($selected_location_ids)) {
         FROM appointments a
         JOIN users u ON a.user_id = u.id
         JOIN locations l ON a.location_id = l.id
-        WHERE a.location_id IN ($placeholders)
+    ";
+    if (!$is_admin || ($is_admin && isset($_GET['therapist_id']))) {
+        $sql .= " INNER JOIN therapist_locations tl ON a.location_id = tl.location_id AND tl.therapist_id = ?\n";
+    }
+    $sql .= "WHERE a.location_id IN ($placeholders)
         AND a.status != 'cancelled'
         AND a.date BETWEEN ? AND ?
+        ORDER BY a.date ASC, a.hour ASC
     ";
-
-    $params = array_merge($selected_location_ids, [
+    $params = array_merge($selected_location_ids, []);
+    if (!$is_admin || ($is_admin && isset($_GET['therapist_id']))) {
+        $params[] = $therapist_id;
+    }
+    $params = array_merge($params, [
         $startOfWeek->format('Y-m-d'),
         $endOfWeek->format('Y-m-d')
     ]);
-
-    if (!$is_admin || ($is_admin && isset($_GET['therapist_id']))) {
-        $sql .= " AND a.therapist_id = ?";
-        $params[] = $therapist_id;
-    }
-
-    $sql .= " ORDER BY a.date ASC, a.hour ASC";
 
     try {
         $stmt = $pdo->prepare($sql);
@@ -169,8 +185,11 @@ if (!empty($selected_location_ids)) {
             }
             $weekly_appointments[$date][$timeSlot][] = $appt;
         }
-    } catch (PDOException $e) {
-        error_log("Error fetching appointments: " . $e->getMessage());
+    } catch (Exception $e) {
+        error_log($e->getMessage());
+        http_response_code(500);
+        echo json_encode(['error' => $e->getMessage()]);
+        exit;
     }
 }
 
@@ -189,17 +208,17 @@ if (!empty($selected_location_ids)) {
             COUNT(CASE WHEN a.status = 'pending' THEN 1 END) as pending_appointments
         FROM appointments a
         LEFT JOIN reports r ON a.id = r.appointment_id
-        WHERE a.location_id IN ($placeholders)
+    ";
+    if (!$is_admin || ($is_admin && isset($_GET['therapist_id']))) {
+        $sql .= " INNER JOIN therapist_locations tl ON a.location_id = tl.location_id AND tl.therapist_id = ?\n";
+    }
+    $sql .= "WHERE a.location_id IN ($placeholders)
         AND a.status != 'cancelled'
     ";
-     $params = $selected_location_ids;
-
+    $params = $selected_location_ids;
     if (!$is_admin || ($is_admin && isset($_GET['therapist_id']))) {
-        // Filter by therapist if not admin or if admin is viewing a specific therapist
-        $sql .= " JOIN therapist_locations tl ON a.location_id = tl.location_id AND tl.therapist_id = ?";
         $params[] = $therapist_id;
     }
-
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -217,12 +236,17 @@ setlocale(LC_TIME, 'fr_FR.utf8', 'fra'); // Keep setlocale as it might be used e
 <link rel="stylesheet" href="<?= url('config/theme.css') ?>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 
 <div class="container-fluid">
     <div class="row">
         <?php include __DIR__ . '/partials/sidebar.php'; ?>
 
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+                <h1 class="h2">Tableau de bord kinésithérapeute</h1>
+            </div>
+
             <?php if (isset($_SESSION['success'])): ?>
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <?= htmlspecialchars($_SESSION['success']) ?>
@@ -511,7 +535,50 @@ setlocale(LC_TIME, 'fr_FR.utf8', 'fra'); // Keep setlocale as it might be used e
     </div>
 </div>
 
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="notificationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="bi bi-bell me-2"></i>
+            <strong class="me-auto">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body"></div>
+    </div>
+</div>
+
+<div class="notification-bell position-relative me-3" style="cursor: pointer;">
+    <i class="bi bi-bell fs-4"></i>
+    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" style="display: none;">
+        0
+    </span>
+</div>
+
+<div class="modal fade" id="notificationsModal" tabindex="-1" aria-labelledby="notificationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notificationsModalLabel">Notifications</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="notificationsList" class="list-group">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Chargement des notifications...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+function debugLog(message) {
+    console.log(message);
+}
+
 function updateSelectedLocations(checkbox) {
     const selectedLocations = Array.from(document.querySelectorAll('input[name="location"]:checked'))
         .map(cb => cb.value);
@@ -544,112 +611,325 @@ function updateSelectedLocations(checkbox) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any existing dashboard functionality
+    initializeDashboard();
+});
+
+function initializeDashboard() {
+    // Your existing dashboard initialization code
+}
+
+function showNotification(message, type = 'success') {
+    const toast = document.getElementById('notificationToast');
+    const toastBody = toast.querySelector('.toast-body');
+    
+    // Set message
+    toastBody.textContent = message;
+    
+    // Set color based on type
+    toast.className = 'toast';
+    if (type === 'success') {
+        toast.classList.add('bg-success', 'text-white');
+    } else if (type === 'error') {
+        toast.classList.add('bg-danger', 'text-white');
+    }
+    
+    // Show toast
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+}
+
+function confirmAppointment(appointmentId) {
+    if (confirm('Êtes-vous sûr de vouloir confirmer ce rendez-vous ?')) {
+        $.ajax({
+            url: 'manage/confirmAppointment.php',
+            method: 'POST',
+            data: { appointment_id: appointmentId },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    showNotification(response.message, 'success');
+                    // Reload the page to show updated status
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(response.message, 'error');
+                }
+            },
+            error: function(xhr, status, error) {
+                showNotification('Une erreur est survenue lors de la confirmation du rendez-vous', 'error');
+            }
+        });
+    }
+}
+
+function cancelAppointment(appointmentId) {
+    if (confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')) {
+        $.ajax({
+            url: 'manage/cancelAppointment.php',
+            method: 'POST',
+            data: { appointment_id: appointmentId },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    showNotification(response.message, 'success');
+                    // Reload the page to show updated status
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(response.message, 'error');
+                }
+            },
+            error: function(xhr, status, error) {
+                showNotification('Une erreur est survenue lors de l\'annulation du rendez-vous', 'error');
+            }
+        });
+    }
+}
+
+// Add this new function to handle appointment modal
+function loadAppointmentDetails(appointmentId) {
+    // Show loading state
+    document.getElementById('clientInfo').innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+    document.getElementById('appointmentDetails').innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+    document.getElementById('lastAppointments').querySelector('tbody').innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+
+    // Fetch appointment details
+    fetch(`get_appointment_details.php?id=${appointmentId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update client info
+                document.getElementById('clientInfo').innerHTML = `
+                    <p><strong>Nom:</strong> ${data.client.name}</p>
+                    <p><strong>Email:</strong> ${data.client.email}</p>
+                    <p><strong>Téléphone:</strong> ${data.client.phone || 'Non renseigné'}</p>
+                `;
+
+                // Update appointment details
+                document.getElementById('appointmentDetails').innerHTML = `
+                    <p><strong>Date:</strong> ${data.appointment.date}</p>
+                    <p><strong>Heure:</strong> ${data.appointment.hour}</p>
+                    <p><strong>Lieu:</strong> ${data.appointment.location_name}</p>
+                    <p><strong>Statut:</strong> <span class="badge bg-${data.appointment.status === 'confirmed' ? 'success' : 'warning'}">${data.appointment.status}</span></p>
+                `;
+
+                // Update appointment history
+                const historyHtml = data.history.map(appt => `
+                    <tr>
+                        <td>${appt.date}</td>
+                        <td>${appt.hour}</td>
+                        <td>${appt.location_name}</td>
+                        <td><span class="badge bg-${appt.status === 'confirmed' ? 'success' : appt.status === 'cancelled' ? 'danger' : 'warning'}">${appt.status}</span></td>
+                        <td>
+                            ${appt.report_id ? 
+                                `<button class="btn btn-sm btn-info" onclick="viewReport(${appt.report_id})">
+                                    <i class="bi bi-file-text"></i> Voir
+                                </button>` : 
+                                'Non disponible'}
+                        </td>
+                    </tr>
+                `).join('');
+                document.getElementById('lastAppointments').querySelector('tbody').innerHTML = historyHtml;
+            } else {
+                showNotification('Erreur lors du chargement des détails', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Erreur lors du chargement des détails', 'error');
+        });
+}
+
+// Add this function to view reports
+function viewReport(reportId) {
+    fetch(`get_report_details.php?id=${reportId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('reportTherapist').textContent = data.therapist_name;
+                document.getElementById('reportDate').textContent = data.date;
+                document.getElementById('reportContent').innerHTML = data.content;
+                new bootstrap.Modal(document.getElementById('reportModal')).show();
+            } else {
+                showNotification('Erreur lors du chargement du rapport', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Erreur lors du chargement du rapport', 'error');
+        });
+}
+
+// Update the existing event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize appointment modal
     const appointmentModal = document.getElementById('appointmentModal');
     if (appointmentModal) {
         appointmentModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
-            const appointmentId = button.dataset.appointmentId;
-            const clientId = button.dataset.clientId;
-
-            // Reset content
-            document.getElementById('clientInfo').innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Chargement...</div>';
-            document.getElementById('appointmentDetails').innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Chargement...</div>';
-            document.getElementById('lastAppointments').querySelector('tbody').innerHTML = '<tr><td colspan="5" class="text-center">Chargement...</td></tr>';
-
-            // Load client info
-            fetch(`<?= url('controllers/getClientInfo.php') ?>?user_id=${clientId}`)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('clientInfo').innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error loading client info:', error);
-                    document.getElementById('clientInfo').innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des informations du client</div>';
-                });
-
-            // Load appointment details
-            fetch(`<?= url('controllers/getAppointmentDetails.php') ?>?appointment_id=${appointmentId}`)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('appointmentDetails').innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error loading appointment details:', error);
-                    document.getElementById('appointmentDetails').innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des détails du rendez-vous</div>';
-                });
-
-            // Load last appointments
-            fetch(`<?= url('controllers/getClientAppointments.php') ?>?user_id=${clientId}&past_only=true`)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('lastAppointments').querySelector('tbody').innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error loading last appointments:', error);
-                    document.getElementById('lastAppointments').querySelector('tbody').innerHTML = '<tr><td colspan="5" class="text-danger text-center">Erreur lors du chargement des derniers rendez-vous</td></tr>';
-                });
+            const appointmentId = button.getAttribute('data-appointment-id');
+            loadAppointmentDetails(appointmentId);
         });
     }
 
-    // Add tooltips to action buttons
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-
-    // Report modal handling (assuming report modal triggering is handled in getClientAppointments.php response)
-    const reportModal = document.getElementById('reportModal');
-    if (reportModal) {
-        reportModal.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget; // Button that triggered the modal
-            const reportData = JSON.parse(button.dataset.report); // Assuming report data is stored as a JSON string
-
-            document.getElementById('reportTherapist').textContent = reportData.therapist_name || 'N/A';
-            document.getElementById('reportDate').textContent = reportData.report_date || 'N/A';
-            document.getElementById('reportContent').innerHTML = reportData.content || 'Aucun contenu.'; // Use innerHTML if content might contain HTML
-
-
-        });
-         // Clear modal content when hidden
-        reportModal.addEventListener('hidden.bs.modal', function() {
-            document.getElementById('reportTherapist').textContent = '';
-            document.getElementById('reportDate').textContent = '';
-            document.getElementById('reportContent').innerHTML = '';
-        });
-    }
-
-     // Delegate click event for report links within the appointment history table
-     document.getElementById('lastAppointments').addEventListener('click', function(event) {
-        const target = event.target.closest('.report-link'); // Find the closest element with class .report-link
-        if (target) {
-            event.preventDefault(); // Prevent default link behavior
-            const reportId = target.dataset.reportId;
-
-            fetch(`<?= url('controllers/getReportDetails.php') ?>?report_id=${reportId}`)
-                .then(response => {
-                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(reportData => {
-                    const reportModalElement = document.getElementById('reportModal');
-                    const reportModal = bootstrap.Modal.getInstance(reportModalElement) || new bootstrap.Modal(reportModalElement);
-
-                    document.getElementById('reportTherapist').textContent = reportData.therapist_name || 'N/A';
-                    document.getElementById('reportDate').textContent = reportData.report_date || 'N/A';
-                    document.getElementById('reportContent').innerHTML = reportData.content || 'Aucun contenu.';
-
-                    reportModal.show();
-                })
-                .catch(error => {
-                    console.error('Error loading report details:', error);
-                    alert('Erreur lors du chargement des détails du rapport.');
-                });
-        }
-     });
-
 });
 </script>
+
+<style>
+/* Update appointment slot styles */
+.appointment-slot {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.appointment-slot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.appointment-slot.confirmed {
+    border-left: 4px solid var(--success);
+}
+
+.appointment-slot.pending {
+    border-left: 4px solid var(--warning);
+}
+
+.appointment-slot.cancelled {
+    border-left: 4px solid var(--danger);
+    opacity: 0.7;
+}
+
+.appointment-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.appointment-client {
+    flex: 1;
+    min-width: 0;
+}
+
+.appointment-location {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.appointment-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Update modal styles */
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-light);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-light);
+}
+
+/* Update badge colors */
+.badge.bg-success {
+    background-color: var(--success) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--warning) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--danger) !important;
+}
+
+/* Update button colors */
+.btn-success {
+    background-color: var(--success);
+    border-color: var(--success);
+}
+
+.btn-warning {
+    background-color: var(--warning);
+    border-color: var(--warning);
+}
+
+.btn-danger {
+    background-color: var(--danger);
+    border-color: var(--danger);
+}
+
+/* Update table styles */
+.table {
+    color: var(--text);
+}
+
+.table-bordered {
+    border-color: var(--border-light);
+}
+
+.table thead th {
+    background-color: var(--bg-card);
+    border-bottom: 2px solid var(--border-light);
+}
+
+/* Update empty slot styles */
+.empty-slot {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.empty-slot .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Update time cell styles */
+.time-cell {
+    background-color: var(--bg-card);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Update day cell styles */
+.day-cell {
+    min-width: 150px;
+    vertical-align: top;
+}
+
+/* Update responsive styles */
+@media (max-width: 768px) {
+    .appointment-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .appointment-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .day-cell {
+        min-width: 120px;
+    }
+}
+</style>
 
 <?php include __DIR__ . '/partials/footer.php'; ?>

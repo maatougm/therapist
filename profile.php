@@ -108,162 +108,170 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Include header
 include __DIR__ . '/partials/header.php';
+
+// Include sidebar
+include __DIR__ . '/partials/sidebar.php';
 ?>
 
 <!-- Profile Page Section -->
-<div class="container py-5">
-    <div class="row">
-        <!-- Profile Card -->
-        <div class="col-md-4 mb-4">
-            <div class="card shadow">
-                <div class="card-body text-center">
-                    <!-- Profile Image -->
-                    <div class="mb-4">
-                        <i class="fas fa-user-circle fa-5x text-primary"></i>
+<div class="main-content">
+    <div class="container-fluid py-4">
+        <div class="row">
+            <!-- Profile Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card shadow">
+                    <div class="card-body text-center">
+                        <!-- Profile Image -->
+                        <div class="mb-4">
+                            <i class="fas fa-user-circle fa-5x text-primary"></i>
+                        </div>
+                        <!-- User Info -->
+                        <h4 class="mb-1"><?= htmlspecialchars($user['name']) ?></h4>
+                        <p class="text-muted mb-3"><?= htmlspecialchars($user['email']) ?></p>
+                        <!-- Role Badge -->
+                        <span class="badge bg-primary">
+                            <?= ucfirst($user['role']) ?>
+                        </span>
                     </div>
-                    <!-- User Info -->
-                    <h4 class="mb-1"><?= htmlspecialchars($user['name']) ?></h4>
-                    <p class="text-muted mb-3"><?= htmlspecialchars($user['email']) ?></p>
-                    <!-- Role Badge -->
-                    <span class="badge bg-primary">
-                        <?= ucfirst($user['role']) ?>
-                    </span>
                 </div>
             </div>
-        </div>
 
-        <!-- Profile Form -->
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-body">
-                    <!-- Card Header -->
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="mb-0">
-                            <i class="fas fa-user-edit me-2"></i>
-                            Modifier le profil
-                        </h4>
+            <!-- Profile Form -->
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <!-- Card Header -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="mb-0">
+                                <i class="fas fa-user-edit me-2"></i>
+                                Modifier le profil
+                            </h4>
+                        </div>
+
+                        <!-- Success Message -->
+                        <?php if ($success): ?>
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <?= htmlspecialchars($success) ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Error Message -->
+                        <?php if ($error): ?>
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                <?= htmlspecialchars($error) ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Profile Form -->
+                        <form method="POST" action="">
+                            <!-- Name Input -->
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Nom complet</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           value="<?= htmlspecialchars($user['name']) ?>" required>
+                                </div>
+                            </div>
+
+                            <!-- Email Input -->
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-envelope"></i>
+                                    </span>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           value="<?= htmlspecialchars($user['email']) ?>" required>
+                                </div>
+                            </div>
+
+                            <!-- Phone Input -->
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Téléphone</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-phone"></i>
+                                    </span>
+                                    <input type="tel" class="form-control" id="phone" name="phone" 
+                                           value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+                                </div>
+                            </div>
+
+                            <!-- Address Input -->
+                            <div class="mb-3">
+                                <label for="address" class="form-label">Adresse</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="address" name="address" 
+                                           value="<?= htmlspecialchars($user['address'] ?? '') ?>">
+                                </div>
+                            </div>
+
+                            <!-- Password Section -->
+                            <div class="card mt-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-lock me-2"></i>
+                                        Changer le mot de passe
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Current Password -->
+                                    <div class="mb-3">
+                                        <label for="current_password" class="form-label">Mot de passe actuel</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-key"></i>
+                                            </span>
+                                            <input type="password" class="form-control" id="current_password" 
+                                                   name="current_password">
+                                        </div>
+                                    </div>
+
+                                    <!-- New Password -->
+                                    <div class="mb-3">
+                                        <label for="new_password" class="form-label">Nouveau mot de passe</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-lock"></i>
+                                            </span>
+                                            <input type="password" class="form-control" id="new_password" 
+                                                   name="new_password">
+                                        </div>
+                                    </div>
+
+                                    <!-- Confirm Password -->
+                                    <div class="mb-3">
+                                        <label for="confirm_password" class="form-label">Confirmer le mot de passe</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-lock"></i>
+                                            </span>
+                                            <input type="password" class="form-control" id="confirm_password" 
+                                                   name="confirm_password">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    Enregistrer les modifications
+                                </button>
+                            </div>
+                        </form>
                     </div>
-
-                    <!-- Success Message -->
-                    <?php if ($success): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <?= htmlspecialchars($success) ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Error Message -->
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                            <?= htmlspecialchars($error) ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Profile Form -->
-                    <form method="POST" action="">
-                        <!-- Name Input -->
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Nom complet</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-user"></i>
-                                </span>
-                                <input type="text" class="form-control" id="name" name="name" 
-                                       value="<?= htmlspecialchars($user['name']) ?>" required>
-                            </div>
-                        </div>
-
-                        <!-- Email Input -->
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-envelope"></i>
-                                </span>
-                                <input type="email" class="form-control" id="email" name="email" 
-                                       value="<?= htmlspecialchars($user['email']) ?>" required>
-                            </div>
-                        </div>
-
-                        <!-- Phone Input -->
-                        <div class="mb-3">
-                            <label for="phone" class="form-label">Téléphone</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-phone"></i>
-                                </span>
-                                <input type="tel" class="form-control" id="phone" name="phone" 
-                                       value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
-                            </div>
-                        </div>
-
-                        <!-- Address Input -->
-                        <div class="mb-3">
-                            <label for="address" class="form-label">Adresse</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                </span>
-                                <input type="text" class="form-control" id="address" name="address" 
-                                       value="<?= htmlspecialchars($user['address'] ?? '') ?>">
-                            </div>
-                        </div>
-
-                        <!-- Password Change Section -->
-                        <div class="mb-4">
-                            <h5 class="text-primary mb-3">
-                                <i class="fas fa-lock me-2"></i>
-                                Changer le mot de passe
-                            </h5>
-                            
-                            <!-- Current Password -->
-                            <div class="mb-3">
-                                <label for="current_password" class="form-label">Mot de passe actuel</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-key"></i>
-                                    </span>
-                                    <input type="password" class="form-control" id="current_password" 
-                                           name="current_password">
-                                </div>
-                            </div>
-
-                            <!-- New Password -->
-                            <div class="mb-3">
-                                <label for="new_password" class="form-label">Nouveau mot de passe</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-lock"></i>
-                                    </span>
-                                    <input type="password" class="form-control" id="new_password" 
-                                           name="new_password">
-                                </div>
-                            </div>
-
-                            <!-- Confirm New Password -->
-                            <div class="mb-3">
-                                <label for="confirm_password" class="form-label">Confirmer le nouveau mot de passe</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-lock"></i>
-                                    </span>
-                                    <input type="password" class="form-control" id="confirm_password" 
-                                           name="confirm_password">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>
-                                Enregistrer les modifications
-                            </button>
-                        </div>
-                    </form>
                 </div>
             </div>
         </div>

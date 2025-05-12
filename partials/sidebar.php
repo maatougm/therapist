@@ -49,10 +49,11 @@ function isActivePage($page_path, $current_path) {
 }
 ?>
 
-<!-- Link to external CSS -->
-<link rel="stylesheet" href="<?php echo url('assets/css/sidebar.css'); ?>">
 
-<nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse" id="sidebarMenu">
     <div class="position-sticky pt-3">
         <a href="<?php echo url('profile.php'); ?>" class="text-decoration-none">
             <div class="text-center mb-4">
@@ -176,4 +177,34 @@ function isActivePage($page_path, $current_path) {
     </div>
 </nav>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebarMenu');
+    const overlay = document.getElementById('sidebarOverlay');
+    const toggleBtn = document.querySelector('[data-bs-toggle="collapse"][data-bs-target="#sidebarMenu"]');
+
+    // Function to toggle sidebar and overlay
+    function toggleSidebar() {
+        sidebar.classList.toggle('show');
+        overlay.classList.toggle('show');
+    }
+
+    // Toggle sidebar when button is clicked
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleSidebar);
+    }
+
+    // Close sidebar when overlay is clicked
+    if (overlay) {
+        overlay.addEventListener('click', toggleSidebar);
+    }
+
+    // Close sidebar when window is resized to desktop view
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 992) {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+    });
+});
+</script>

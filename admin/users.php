@@ -10,7 +10,139 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 // Database connection
 require_once __DIR__ . '/../config/db.php';
 
-// Include header
+// Initialize
+$success = '';
+$error = '';
+$selectedUser = null;
+
+// Build search query
+$searchQuery = "SELECT * FROM users";
+$params = [];
+
+if (isset($_GET['search']) && !empty($_GET['search'])) {
+    $search = '%' . $_GET['search'] . '%';
+    $searchQuery .= " WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?";
+    $params = [$search, $search, $search];
+}
+
+$searchQuery .= " ORDER BY created_at DESC";
+
+// Handle actions BEFORE any output or includes
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['update_user'])) {
+        // Update User
+        $userId = $_POST['user_id'];
+        $name = trim($_POST['name']);
+        $email = trim($_POST['email']);
+        $phone = trim($_POST['phone']);
+        $address = trim($_POST['address']);
+        $newPassword = trim($_POST['new_password']);
+
+        $errors = [];
+
+        if (empty($name)) {
+            $errors[] = "Le nom est requis.";
+        }
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = "L'email n'est pas valide.";
+        }
+
+        if (empty($errors)) {
+            try {
+                // Check email uniqueness
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+                $stmt->execute([$email, $userId]);
+                if ($stmt->fetch()) {
+                    $errors[] = "Cet email est déjà utilisé.";
+                } else {
+                    // Update profile fields
+                    $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?");
+                    $stmt->execute([$name, $email, $phone, $address, $userId]);
+
+                    // Update password if provided
+                    if (!empty($newPassword)) {
+                        if (strlen($newPassword) < 6) {
+                            $errors[] = "Le mot de passe doit contenir au moins 6 caractères.";
+                        } else {
+                            $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+                            $stmt->execute([$newPassword, $userId]);
+                        }
+                    }
+
+                    if (empty($errors)) {
+                        $success = "Utilisateur modifié avec succès.";
+                        header('Location: users.php?success=' . urlencode($success));
+                        exit;
+                    }
+                }
+            } catch (PDOException $e) {
+                $errors[] = "Erreur de mise à jour: " . $e->getMessage();
+            }
+        }
+
+        if (!empty($errors)) {
+            $error = implode("<br>", $errors);
+        }
+    }
+
+    if (isset($_POST['delete_user'])) {
+        // Delete User
+        $userId = $_POST['user_id'];
+
+        try {
+            $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+
+            if (!$user) {
+                $error = "Utilisateur non trouvé.";
+            } elseif ($user['role'] === 'admin') {
+                $error = "Impossible de supprimer un administrateur.";
+            } else {
+                // Check if user has appointments
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE user_id = ?");
+                $stmt->execute([$userId]);
+                if ($stmt->fetchColumn() > 0) {
+                    $error = "Impossible de supprimer un utilisateur ayant des rendez-vous.";
+                } else {
+                    $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                    $stmt->execute([$userId]);
+                    $success = "Utilisateur supprimé avec succès.";
+                    header('Location: users.php');
+                    exit;
+                }
+            }
+        } catch (PDOException $e) {
+            $error = "Erreur de suppression: " . $e->getMessage();
+        }
+    }
+}
+
+// Fetch users with search
+try {
+    $stmt = $pdo->prepare($searchQuery);
+    $stmt->execute($params);
+    $users = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $error = "Erreur lors de la récupération des utilisateurs.";
+    $users = [];
+}
+
+// If editing, load user
+if (isset($_GET['profile_id'])) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$_GET['profile_id']]);
+        $selectedUser = $stmt->fetch();
+        if (!$selectedUser) {
+            $error = "Utilisateur non trouvé.";
+        }
+    } catch (PDOException $e) {
+        $error = "Erreur de récupération du profil: " . $e->getMessage();
+    }
+}
+
+// Now include the header (after all header() calls)
 include '../partials/header.php';
 ?>
 
@@ -54,140 +186,6 @@ include '../partials/header.php';
                     </form>
                 </div>
             </div>
-
-            <?php
-            // Initialize
-            $success = '';
-            $error = '';
-            $selectedUser = null;
-
-            // Build search query
-            $searchQuery = "SELECT * FROM users";
-            $params = [];
-            
-            if (isset($_GET['search']) && !empty($_GET['search'])) {
-                $search = '%' . $_GET['search'] . '%';
-                $searchQuery .= " WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?";
-                $params = [$search, $search, $search];
-            }
-            
-            $searchQuery .= " ORDER BY created_at DESC";
-
-            // Fetch users with search
-            try {
-                $stmt = $pdo->prepare($searchQuery);
-                $stmt->execute($params);
-                $users = $stmt->fetchAll();
-            } catch (PDOException $e) {
-                $error = "Erreur lors de la récupération des utilisateurs.";
-                $users = [];
-            }
-
-            // Handle actions
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                if (isset($_POST['update_user'])) {
-                    // Update User
-                    $userId = $_POST['user_id'];
-                    $name = trim($_POST['name']);
-                    $email = trim($_POST['email']);
-                    $phone = trim($_POST['phone']);
-                    $address = trim($_POST['address']);
-                    $newPassword = trim($_POST['new_password']);
-
-                    $errors = [];
-
-                    if (empty($name)) {
-                        $errors[] = "Le nom est requis.";
-                    }
-                    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                        $errors[] = "L'email n'est pas valide.";
-                    }
-
-                    if (empty($errors)) {
-                        try {
-                            // Check email uniqueness
-                            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
-                            $stmt->execute([$email, $userId]);
-                            if ($stmt->fetch()) {
-                                $errors[] = "Cet email est déjà utilisé.";
-                            } else {
-                                // Update profile fields
-                                $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?");
-                                $stmt->execute([$name, $email, $phone, $address, $userId]);
-
-                                // Update password if provided
-                                if (!empty($newPassword)) {
-                                    if (strlen($newPassword) < 6) {
-                                        $errors[] = "Le mot de passe doit contenir au moins 6 caractères.";
-                                    } else {
-                                        $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
-                                        $stmt->execute([$newPassword, $userId]);
-                                    }
-                                }
-
-                                if (empty($errors)) {
-                                    $success = "Utilisateur modifié avec succès.";
-                                    header('Location: users.php?success=' . urlencode($success));
-                                    exit;
-                                }
-                            }
-                        } catch (PDOException $e) {
-                            $errors[] = "Erreur de mise à jour: " . $e->getMessage();
-                        }
-                    }
-
-                    if (!empty($errors)) {
-                        $error = implode("<br>", $errors);
-                    }
-                }
-
-                if (isset($_POST['delete_user'])) {
-                    // Delete User
-                    $userId = $_POST['user_id'];
-
-                    try {
-                        $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-                        $stmt->execute([$userId]);
-                        $user = $stmt->fetch();
-
-                        if (!$user) {
-                            $error = "Utilisateur non trouvé.";
-                        } elseif ($user['role'] === 'admin') {
-                            $error = "Impossible de supprimer un administrateur.";
-                        } else {
-                            // Check if user has appointments
-                            $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE user_id = ?");
-                            $stmt->execute([$userId]);
-                            if ($stmt->fetchColumn() > 0) {
-                                $error = "Impossible de supprimer un utilisateur ayant des rendez-vous.";
-                            } else {
-                                $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-                                $stmt->execute([$userId]);
-                                $success = "Utilisateur supprimé avec succès.";
-                                header('Location: users.php');
-                                exit;
-                            }
-                        }
-                    } catch (PDOException $e) {
-                        $error = "Erreur de suppression: " . $e->getMessage();
-                    }
-                }
-            }
-
-            // If editing, load user
-            if (isset($_GET['profile_id'])) {
-                try {
-                    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-                    $stmt->execute([$_GET['profile_id']]);
-                    $selectedUser = $stmt->fetch();
-                    if (!$selectedUser) {
-                        $error = "Utilisateur non trouvé.";
-                    }
-                } catch (PDOException $e) {
-                    $error = "Erreur de récupération du profil: " . $e->getMessage();
-                }
-            }
-            ?>
 
             <!-- Success/Error -->
             <?php if ($success): ?>

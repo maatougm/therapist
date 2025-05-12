@@ -323,6 +323,20 @@ INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`, `status`, `creat
 (93, 'ahmed', 'ahmed@test.com', '0000', 'therapist', 'active', '2025-04-28 22:06:49', '2025-04-29 13:36:55', '934131063', 'dsm');
 
 --
+-- Notification system table
+--
+CREATE TABLE `notifications` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL, -- recipient (user, therapist, or admin)
+  `type` VARCHAR(50) NOT NULL, -- e.g. 'appointment', 'system'
+  `message` TEXT NOT NULL,
+  `appointment_id` INT DEFAULT NULL,
+  `is_read` TINYINT(1) DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+
+--
 -- Indexes for dumped tables
 --
 

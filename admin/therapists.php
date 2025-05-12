@@ -125,95 +125,15 @@ $locations = $pdo->query("SELECT * FROM locations ORDER BY name")->fetchAll();
 include __DIR__ . '/../partials/header.php';
 ?>
 
-<style>
-    .location-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.35em 0.65em;
-        margin: 0.25em;
-        font-size: 0.875em;
-        font-weight: 500;
-        line-height: 1;
-        text-align: center;
-        white-space: nowrap;
-        vertical-align: baseline;
-        border-radius: 0.375rem;
-        background-color: #0d6efd;
-        color: white;
-        transition: all 0.2s ease-in-out;
-    }
-
-    .location-badge:hover {
-        background-color: #0b5ed7;
-        transform: translateY(-1px);
-    }
-
-    .location-remove-btn {
-        background: none;
-        border: none;
-        padding: 0;
-        margin-left: 0.5em;
-        color: white;
-        opacity: 0.7;
-        transition: opacity 0.2s ease-in-out;
-    }
-
-    .location-remove-btn:hover {
-        opacity: 1;
-        color: white;
-    }
-
-    .location-add-btn {
-        padding: 0.25em 0.5em;
-        font-size: 0.875em;
-        margin-left: 0.5em;
-    }
-
-    .locations-container {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.5em;
-        min-height: 2.5em;
-    }
-
-    .modal-content {
-        border-radius: 0.5rem;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    }
-
-    .modal-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
-        border-radius: 0.5rem 0.5rem 0 0;
-    }
-
-    .modal-footer {
-        background-color: #f8f9fa;
-        border-top: 1px solid #dee2e6;
-        border-radius: 0 0 0.5rem 0.5rem;
-    }
-
-    .form-select {
-        border-radius: 0.375rem;
-        border: 1px solid #ced4da;
-        padding: 0.375rem 0.75rem;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    .form-select:focus {
-        border-color: #86b7fe;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-    }
-</style>
-
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <?php include __DIR__ . '/../partials/sidebar.php'; ?>
+        <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+            <?php include '../partials/sidebar.php'; ?>
+        </div>
 
         <!-- Main Content -->
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+        <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">Gestion des Kinésithérapeutes</h1>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTherapistModal">
@@ -416,7 +336,7 @@ include __DIR__ . '/../partials/header.php';
                     </tbody>
                 </table>
             </div>
-        </main>
+        </div>
     </div>
 </div>
 

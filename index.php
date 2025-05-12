@@ -28,31 +28,22 @@ $featured_therapists = $stmt->fetchAll();
                 <p class="lead text-muted mb-4 animate__animated animate__fadeInUp animate__delay-1s">
                     Des soins de kinésithérapie personnalisés et professionnels pour votre santé et votre confort.
                 </p>
-                <div class="d-flex gap-3 animate__animated animate__fadeInUp animate__delay-2s">
-                    <a href="book_appointment.php" class="btn btn-primary btn-lg px-4">
-                        <i class="fas fa-calendar-plus me-2"></i>
-                        Prendre RDV
-                    </a>
-                    <a href="#services" class="btn btn-outline-primary btn-lg px-4">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Découvrir
-                    </a>
-                </div>
+                
             </div>
             <div class="col-lg-6 d-none d-lg-block">
-                <div class="hero-image position-relative animate__animated animate__fadeIn">
+                <div class="hero-image position-relative animate__animated animate__fadeIn parallax-element">
                     <img src="assets/images/hero-image.jpg" alt="Kinésithérapie" class="img-fluid rounded-4 shadow-lg">
-                    <div class="hero-stats position-absolute bottom-0 start-0 bg-white p-4 rounded-4 shadow-lg">
+                    <div class="hero-stats position-absolute bottom-0 start-0 bg-white p-4 rounded-4 shadow-lg floating-card">
                         <div class="row g-4">
                             <div class="col-6">
-                                <div class="text-center">
-                                    <h3 class="text-primary mb-0">50+</h3>
+                                <div class="text-center counter-animation">
+                                    <h3 class="text-primary mb-0" data-count="50">0+</h3>
                                     <small class="text-muted">Professionnels</small>
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="text-center">
-                                    <h3 class="text-primary mb-0">1000+</h3>
+                                <div class="text-center counter-animation">
+                                    <h3 class="text-primary mb-0" data-count="1000">0+</h3>
                                     <small class="text-muted">Patients satisfaits</small>
                                 </div>
                             </div>
@@ -69,14 +60,14 @@ $featured_therapists = $stmt->fetchAll();
 <section id="services" class="py-5 bg-light">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="display-4 fw-bold text-primary mb-3">Nos Services</h2>
-            <p class="lead text-muted">Des soins adaptés à vos besoins spécifiques</p>
+            <h2 class="display-4 fw-bold text-primary mb-3 animate-on-scroll">Nos Services</h2>
+            <p class="lead text-muted animate-on-scroll">Des soins adaptés à vos besoins spécifiques</p>
         </div>
         <div class="row g-4">
             <div class="col-md-4">
-                <div class="service-card card h-100 border-0 shadow-sm hover-shadow">
+                <div class="service-card card h-100 border-0 shadow-sm hover-shadow animate-on-scroll">
                     <div class="card-body p-4">
-                        <div class="icon-circle bg-primary-light mb-4">
+                        <div class="icon-circle bg-primary-light mb-4 rotate-icon">
                             <i class="fas fa-bone text-primary"></i>
                         </div>
                         <h3 class="h5 mb-3">Rééducation</h3>
@@ -87,9 +78,9 @@ $featured_therapists = $stmt->fetchAll();
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="service-card card h-100 border-0 shadow-sm hover-shadow">
+                <div class="service-card card h-100 border-0 shadow-sm hover-shadow animate-on-scroll">
                     <div class="card-body p-4">
-                        <div class="icon-circle bg-success-light mb-4">
+                        <div class="icon-circle bg-success-light mb-4 rotate-icon">
                             <i class="fas fa-running text-success"></i>
                         </div>
                         <h3 class="h5 mb-3">Kinésithérapie Sportive</h3>
@@ -100,9 +91,9 @@ $featured_therapists = $stmt->fetchAll();
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="service-card card h-100 border-0 shadow-sm hover-shadow">
+                <div class="service-card card h-100 border-0 shadow-sm hover-shadow animate-on-scroll">
                     <div class="card-body p-4">
-                        <div class="icon-circle bg-info-light mb-4">
+                        <div class="icon-circle bg-info-light mb-4 rotate-icon">
                             <i class="fas fa-baby text-info"></i>
                         </div>
                         <h3 class="h5 mb-3">Kinésithérapie Pédiatrique</h3>
@@ -120,15 +111,15 @@ $featured_therapists = $stmt->fetchAll();
 <section class="py-5">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="display-4 fw-bold text-primary mb-3">Nos Kinésithérapeutes</h2>
-            <p class="lead text-muted">Des professionnels qualifiés à votre service</p>
+            <h2 class="display-4 fw-bold text-primary mb-3 animate-on-scroll">Nos Kinésithérapeutes</h2>
+            <p class="lead text-muted animate-on-scroll">Des professionnels qualifiés à votre service</p>
         </div>
         <div class="row g-4">
             <?php foreach ($featured_therapists as $therapist): ?>
                 <div class="col-md-4">
-                    <div class="therapist-card card h-100 border-0 shadow-sm hover-shadow">
+                    <div class="therapist-card card h-100 border-0 shadow-sm hover-shadow animate-on-scroll">
                         <div class="card-body p-4 text-center">
-                            <div class="therapist-avatar mb-3">
+                            <div class="therapist-avatar mb-3 scale-on-hover">
                                 <i class="fas fa-user-md fa-3x text-primary"></i>
                             </div>
                             <h3 class="h5 mb-2"><?= htmlspecialchars($therapist['name']) ?></h3>
@@ -136,7 +127,7 @@ $featured_therapists = $stmt->fetchAll();
                                 <?= $therapist['appointment_count'] ?> rendez-vous effectués
                             </p>
                             <a href="book_appointment.php?therapist_id=<?= $therapist['id'] ?>" 
-                               class="btn btn-outline-primary">
+                               class="btn btn-outline-primary hover-scale">
                                 <i class="fas fa-calendar-plus me-2"></i>
                                 Prendre RDV
                             </a>
@@ -152,15 +143,15 @@ $featured_therapists = $stmt->fetchAll();
 <section class="py-5 bg-light">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="display-4 fw-bold text-primary mb-3">Témoignages</h2>
-            <p class="lead text-muted">Ce que nos patients disent de nous</p>
+            <h2 class="display-4 fw-bold text-primary mb-3 animate-on-scroll">Témoignages</h2>
+            <p class="lead text-muted animate-on-scroll">Ce que nos patients disent de nous</p>
         </div>
         <div class="row g-4">
             <div class="col-md-4">
-                <div class="testimonial-card card h-100 border-0 shadow-sm">
+                <div class="testimonial-card card h-100 border-0 shadow-sm animate-on-scroll">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="testimonial-avatar me-3">
+                            <div class="testimonial-avatar me-3 scale-on-hover">
                                 <i class="fas fa-user fa-2x text-primary"></i>
                             </div>
                             <div>
@@ -175,10 +166,10 @@ $featured_therapists = $stmt->fetchAll();
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="testimonial-card card h-100 border-0 shadow-sm">
+                <div class="testimonial-card card h-100 border-0 shadow-sm animate-on-scroll">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="testimonial-avatar me-3">
+                            <div class="testimonial-avatar me-3 scale-on-hover">
                                 <i class="fas fa-user fa-2x text-primary"></i>
                             </div>
                             <div>
@@ -193,10 +184,10 @@ $featured_therapists = $stmt->fetchAll();
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="testimonial-card card h-100 border-0 shadow-sm">
+                <div class="testimonial-card card h-100 border-0 shadow-sm animate-on-scroll">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="testimonial-avatar me-3">
+                            <div class="testimonial-avatar me-3 scale-on-hover">
                                 <i class="fas fa-user fa-2x text-primary"></i>
                             </div>
                             <div>
@@ -219,13 +210,13 @@ $featured_therapists = $stmt->fetchAll();
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h2 class="display-4 fw-bold mb-3">Prêt à prendre soin de votre santé ?</h2>
-                <p class="lead mb-0">
+                <h2 class="display-4 fw-bold mb-3 animate-on-scroll">Prêt à prendre soin de votre santé ?</h2>
+                <p class="lead mb-0 animate-on-scroll">
                     Réservez votre consultation en ligne en quelques clics.
                 </p>
             </div>
             <div class="col-lg-4 text-lg-end">
-                <a href="book_appointment.php" class="btn btn-light btn-lg px-4">
+                <a href="book_appointment.php" class="btn btn-light btn-lg px-4 pulse-animation">
                     <i class="fas fa-calendar-plus me-2"></i>
                     Prendre RDV
                 </a>
@@ -233,121 +224,5 @@ $featured_therapists = $stmt->fetchAll();
         </div>
     </div>
 </section>
-
-<style>
-/* Hero Section Styles */
-.hero-section {
-    background: linear-gradient(135deg, var(--primary-light) 0%, var(--white) 100%);
-    padding: 4rem 0;
-}
-
-.hero-image {
-    transform: perspective(1000px) rotateY(-10deg);
-    transition: transform 0.3s ease;
-}
-
-.hero-image:hover {
-    transform: perspective(1000px) rotateY(0deg);
-}
-
-.hero-stats {
-    transform: translateY(50%);
-}
-
-/* Service Card Styles */
-.service-card {
-    transition: transform 0.3s ease;
-}
-
-.service-card:hover {
-    transform: translateY(-5px);
-}
-
-/* Therapist Card Styles */
-.therapist-card {
-    transition: transform 0.3s ease;
-}
-
-.therapist-card:hover {
-    transform: translateY(-5px);
-}
-
-.therapist-avatar {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-light);
-    border-radius: 50%;
-}
-
-/* Testimonial Card Styles */
-.testimonial-card {
-    transition: transform 0.3s ease;
-}
-
-.testimonial-card:hover {
-    transform: translateY(-5px);
-}
-
-.testimonial-avatar {
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-light);
-    border-radius: 50%;
-}
-
-/* CTA Section Styles */
-.cta-section {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-}
-
-/* Animation Classes */
-.animate__animated {
-    animation-duration: 1s;
-    animation-fill-mode: both;
-}
-
-.animate__fadeInUp {
-    animation-name: fadeInUp;
-}
-
-.animate__fadeIn {
-    animation-name: fadeIn;
-}
-
-.animate__delay-1s {
-    animation-delay: 1s;
-}
-
-.animate__delay-2s {
-    animation-delay: 2s;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translate3d(0, 40px, 0);
-    }
-    to {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-    }
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-</style>
 
 <?php include 'partials/footer.php'; ?>
